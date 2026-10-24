@@ -216,6 +216,14 @@ nav.bar .add[aria-current="page"] span.ring{background:var(--gold);color:var(--o
         </select></label>
     </div>
     <div class="card">
+      <h3 class="sub">Tu estilista</h3>
+      <p class="muted" style="font-size:14px">Una estilista profesional, elegante y sencilla, que piensa bien cada look. Cuéntale aquí tu estilo y lo que prefieres evitar.</p>
+      <div class="fields"><label class="full">Mi estilo<textarea id="estilo" rows="4" placeholder="Ej.: En el trabajo prefiero no llevar minifalda. No me gusta mezclar negro y marino."></textarea></label></div>
+      <div class="row"><button class="btn primary sm" type="button" data-act="guardarEstilo">Guardar estilo</button><button class="btn ghost sm" type="button" data-act="estiloDef">Volver al texto inicial</button></div>
+      <label class="row" style="gap:8px;font-size:14px"><input type="checkbox" id="pensar"> Pensar más cada look</label>
+      <p class="muted" style="font-size:13px">Claude valora varias combinaciones antes de proponerte una. Looks mejor pensados, pero cada uno tarda unos segundos más y cuesta aproximadamente el doble.</p>
+    </div>
+    <div class="card">
       <h3 class="sub">Gasto de Claude este mes</h3>
       <p id="gasto" style="font:500 22px var(--f-mono);font-variant-numeric:tabular-nums"></p>
       <p class="muted" style="font-size:13px">Estimado en este móvil a partir de los tokens de cada petición. El dato exacto está en platform.claude.com, en Usage.</p>
@@ -353,7 +361,7 @@ function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTi
 /* ---------- Llamada a Claude ---------- */
 class ClaudeError extends Error{constructor(code,msg){super(msg);this.code=code}}
 async function aBase64(blob){const b=new Uint8Array(await blob.arrayBuffer());let s="";for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s)}
-async function pedirClaude(texto,{imagen,signal,maxTokens=1500}={}){
+async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=false}={}){
   if(!S.key) throw new ClaudeError("sin_clave");
   const content=[];
   if(imagen) content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:await aBase64(imagen)}});
@@ -362,7 +370,9 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500}={}){
   try{
     r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",signal,headers:{
       "content-type":"application/json","x-api-key":S.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:S.modelo,max_tokens:maxTokens,messages:[{role:"user",content}]})});
+      body:JSON.stringify(Object.assign({model:S.modelo,max_tokens:maxTokens,messages:[{role:"user",content}]},
+        system?{system}:{},
+        pensar?{thinking:{type:"adaptive"},output_config:{effort:"medium"},max_tokens:maxTokens+6000}:{}))});
   }catch(e){ if(e.name==="AbortError") throw new ClaudeError("cancelado"); throw new ClaudeError("red"); }
   let data=null; try{data=await r.json()}catch{}
   if(!r.ok){
@@ -370,6 +380,7 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500}={}){
     if(r.status===401) throw new ClaudeError("clave");
     if(r.status===403) throw new ClaudeError("permiso");
     if(r.status===429) throw new ClaudeError("limite");
+    if(pensar&&r.status===400&&/thinking|effort|output_config/i.test(m)){ ls.set("kc.sinPensar",S.modelo); return pedirClaude(texto,{imagen,signal,maxTokens,system,pensar:false}); }
     if(r.status===529||r.status>=500) throw new ClaudeError("saturado");
     if(/credit|balance|billing/i.test(m)) throw new ClaudeError("saldo");
     if(/model/i.test(m)) throw new ClaudeError("modelo",m);
@@ -540,16 +551,32 @@ function recientes(f,dias=3){
   for(let i=-dias;i<=dias;i++){ if(!i) continue; const p=S.planes.get(ymd(addDays(d,i))); p&&(p.piezas||[]).forEach(x=>out.add(x)); }
   return [...out];
 }
-const REGLAS=`Estilo de la dueña: base de neutros (negro, marino, crudo) con toques de leopardo, dorado, estrellas y gatos. Un solo estampado animal protagonista por look (leopardo, cebra...). Un look lleva parte de arriba + parte de abajo (o un vestido), zapatos, y chaqueta o abrigo si la temperatura lo pide; añade bolso y uno o dos complementos o joyas cuando sumen. Ten en cuenta la estación y que pueda llevar capas si hay mucha diferencia entre mínima y máxima.`;
+const ESTILISTA=`Eres una estilista profesional de prestigio internacional reconocido, con años vistiendo a mujeres reales para su día a día. Tu sello es una elegancia moderna y sencilla: looks actuales, nunca estridentes ni extravagantes, que favorecen y se ven pensados sin esfuerzo aparente.
+Cómo trabajas:
+- Antes de proponer, valoras varias combinaciones y te quedas con la mejor; no propones la primera que se te ocurre.
+- Cuidas la armonía de color (paleta de dos o tres tonos, neutros como base), las proporciones y siluetas, y el equilibrio de texturas.
+- Adecuas el nivel de formalidad exactamente a la ocasión y la ropa a la temperatura, con capas cuando hay mucha diferencia entre mínima y máxima.
+- Menos es más: como máximo una pieza protagonista por look. Los estampados animales (leopardo, cebra) son un recurso puntual: úsalos solo cuando de verdad eleven el look, nunca por costumbre; la mayoría de looks no los llevan.
+- Complementos y joyas solo si suman, uno o dos como mucho.
+- Un look completo lleva parte de arriba y de abajo (o un vestido), zapatos, y chaqueta o abrigo si el tiempo lo pide; bolso cuando tenga sentido.
+- Solo usas prendas de la lista que te dan, por su id.
+Escribes en español de España, con un tono cercano y profesional.`;
+const ESTILO_DEF=`Mi armario se basa en neutros (negro, marino, crudo) con algunos detalles que me gustan: leopardo, dorado, estrellas y gatos.`;
+const estiloUsuaria=()=>ls.get("kc.estilo",ESTILO_DEF).trim();
+const REGLAS_TXT=()=>{const e=estiloUsuaria();return e?`Lo que te ha contado sobre su estilo:\n${e}`:""};
+const esAnimal=p=>/leopardo|cebra|animal/i.test([p.tono,p.nombre,p.color].join(" "));
+const animalReciente=f=>recientes(f,2).some(id=>{const p=S.prendas.get(id);return p&&esAnimal(p)});
+const pensar=()=>ls.get("kc.pensar",true)&&ls.get("kc.sinPensar","")!==S.modelo;
 const limpiaPiezas=arr=>Array.isArray(arr)?[...new Set(arr.map(String))].filter(id=>S.prendas.has(id)):[];
 
 async function pedirLook(f,ocasion,evitar=[]){
   if(S.busy) return;
   const ctl=new AbortController(); S.busy={fecha:f,ctl}; delete S.err[f]; renderLook();
   const sel=seleccion([ocasion],{fechas:[f],excluir:evitar});
-  const prompt=`Eres la estilista personal de una mujer. Propón UN look completo para el ${largo(f)} usando SOLO prendas de esta lista, ya preseleccionada para la ocasión y el tiempo.
+  const prompt=`Propón UN look completo para el ${largo(f)} usando SOLO prendas de esta lista, ya preseleccionada para la ocasión y el tiempo.
 Ocasión: ${ocasion}. Temperatura: ${S.tmin} a ${S.tmax} °C.
-${REGLAS}
+${REGLAS_TXT()}
+${animalReciente(f)?"Estos días ya ha llevado estampado animal: hoy evítalo.":""}
 ${evitar.length?`Debe ser claramente distinto del look anterior (${evitar.join(", ")}).`:""}
 
 Prendas (id|categoría|prenda|color|detalle|estilo):
@@ -557,7 +584,7 @@ ${sel.texto}
 
 Formato: {"titulo":"nombre corto y con gracia para el look","piezas":["p07","p14"],"nota":"una o dos frases: por qué funciona y un consejo práctico"}`;
   try{
-    const r=await pedirJSON(prompt,{signal:ctl.signal});
+    const r=await pedirJSON(prompt,{signal:ctl.signal,system:ESTILISTA,pensar:pensar()});
     const piezas=limpiaPiezas(r&&r.piezas);
     if(piezas.length<2) throw new ClaudeError("encaje");
     S.propuesta[f]={titulo:String(r.titulo||"Tu look").slice(0,80),piezas,nota:String(r.nota||"").slice(0,400),ocasion,vistas:`${sel.enviadas} de ${sel.total}`};
@@ -716,12 +743,12 @@ async function planificar(dias){
   const ctl=new AbortController(); S.semBusy={dias,ctl}; $("#semErr").innerHTML=""; renderSemana();
   const fijos=semana().filter(f=>S.planes.has(f)&&!dias.includes(f)).map(f=>`${f}: ${(S.planes.get(f).piezas||[]).join(", ")}`);
   const sel=seleccion([...new Set(dias.map(ocasDia))]);
-  const prompt=`Eres la estilista personal de una mujer. Planifica un look por día usando SOLO prendas de esta lista, ya preseleccionada para las ocasiones y el tiempo.
+  const prompt=`Planifica un look por día usando SOLO prendas de esta lista, ya preseleccionada para las ocasiones y el tiempo.
 Días a planificar:
 ${dias.map(f=>`- ${f} (${largo(f)}): ${ocasDia(f)}`).join("\n")}
 Temperatura prevista: ${S.tmin} a ${S.tmax} °C.
-${REGLAS}
-Reparte bien: no repitas la misma parte de arriba en la semana y evita repetir parte de abajo en días seguidos. Zapatos, bolsos y joyas pueden repetirse.
+${REGLAS_TXT()}
+Reparte bien: no repitas la misma parte de arriba en la semana y evita repetir parte de abajo en días seguidos. Zapatos, bolsos y joyas pueden repetirse. Como mucho uno o dos looks de la semana con estampado animal.
 ${fijos.length?`Estos días ya están decididos, tenlos en cuenta para no repetir:\n${fijos.join("\n")}`:""}
 
 Prendas (id|categoría|prenda|color|detalle|estilo):
@@ -729,7 +756,7 @@ ${sel.texto}
 
 Formato: {"dias":[{"fecha":"AAAA-MM-DD","titulo":"nombre corto del look","piezas":["p07","p14"],"nota":"una frase con el porqué"}]}`;
   try{
-    const r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:3000});
+    const r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:3000,system:ESTILISTA,pensar:pensar()});
     let n=0;
     for(const x of (Array.isArray(r&&r.dias)?r.dias:[])){
       const f=String(x&&x.fecha||""); if(!dias.includes(f)) continue;
@@ -746,6 +773,8 @@ function renderAjustes(){
   const inp=$("#clave"); if(document.activeElement!==inp) inp.value=S.key;
   $("#modelo").value=S.modelo;
   if(!$("#estadoClave").dataset.fijo) $("#estadoClave").innerHTML=S.key?`<span class="status ok">✓ Clave guardada en este móvil</span>`:`<span class="muted">Todavía no hay clave.</span>`;
+  if(document.activeElement!==$("#estilo")) $("#estilo").value=estiloUsuaria();
+  $("#pensar").checked=!!ls.get("kc.pensar",true);
   const g=ls.get("kc.gasto",{})[mesActual()]||{usd:0,n:0};
   $("#gasto").textContent=`${g.usd.toFixed(g.usd<1?3:2).replace(".",",")} $ · ${g.n} ${g.n===1?"petición":"peticiones"}`;
   $("#catalogoCard").hidden=CATALOGO.every(c=>S.prendas.has(idCat(c[0])));
@@ -825,6 +854,8 @@ document.addEventListener("click",async ev=>{
       catch(e){ st.innerHTML=`<span class="err">${esc(errMsg(e))}</span>`; }
       finally{ b.disabled=false; renderAll(); } break; }
     case "exportar": exportar(); break;
+    case "guardarEstilo": ls.set("kc.estilo",$("#estilo").value.slice(0,1500)); toast("Estilo guardado"); break;
+    case "estiloDef": ls.del("kc.estilo"); $("#estilo").value=ESTILO_DEF; toast("Texto inicial recuperado"); break;
     case "cargarCatalogo": cargarCatalogo(); break;
     case "instalar": if(S.instalar){ S.instalar.prompt(); const r=await S.instalar.userChoice.catch(()=>null); if(r&&r.outcome==="accepted"){S.instalar=null;renderAll()} } break;
   }
@@ -833,6 +864,7 @@ document.addEventListener("change",async ev=>{
   const t=ev.target;
   if(t.dataset&&t.dataset.act==="ocasDia"){ S.semOcas[t.dataset.f]=t.value; const p=S.planes.get(t.dataset.f); if(p) await guardar("planes",{...p,ocasion:t.value}); }
   if(t.id==="modelo"){ S.modelo=t.value; ls.set("kc.modelo",t.value); }
+  if(t.id==="pensar"){ ls.set("kc.pensar",t.checked); ls.del("kc.sinPensar"); }
 });
 $("#sheet").addEventListener("click",ev=>{ if(ev.target.id==="sheet") cerrarFicha(); });
 document.addEventListener("keydown",ev=>{ if(ev.key==="Escape"&&!$("#sheet").hidden) cerrarFicha(); });
