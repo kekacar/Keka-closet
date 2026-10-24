@@ -140,6 +140,10 @@ nav.bar .add[aria-current="page"] span.ring{background:var(--gold);color:var(--o
 .empty{text-align:center;display:grid;gap:10px;justify-items:center;padding-block:24px}
 .keyrow{display:flex;gap:8px}
 .keyrow input{flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-family:var(--f-mono);font-size:13px}
+.nota-box{display:grid;gap:6px}
+.nota-in{display:flex;gap:6px;align-items:flex-start}
+.nota-in textarea{flex:1;min-width:0;padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font-size:14px;resize:vertical}
+.chips.mini .chip{padding:4px 10px;font-size:12.5px;color:var(--muted)}
 .set select{padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);width:100%}
 </style>
 </head>
@@ -163,6 +167,11 @@ nav.bar .add[aria-current="page"] span.ring{background:var(--gold);color:var(--o
     <div class="temp"><span class="muted">Temperatura</span>
       <input id="tmin" type="number" inputmode="numeric" aria-label="Mínima"> <span>–</span>
       <input id="tmax" type="number" inputmode="numeric" aria-label="Máxima"> <span>°C</span></div>
+    <div class="nota-box">
+      <label for="notaHoy" class="eyebrow">Para la estilista</label>
+      <div class="nota-in"><textarea id="notaHoy" rows="2" maxlength="300" placeholder="¿Algo que no te apetezca? Ej.: hoy no quiero ir con vaqueros"></textarea><button type="button" class="btn ghost sm" data-act="notaBorrar" data-for="notaHoy" aria-label="Borrar nota">✕</button></div>
+      <div class="chips mini"><button type="button" class="chip" data-act="notaChip" data-for="notaHoy" data-v="Nada de tacón">Nada de tacón</button><button type="button" class="chip" data-act="notaChip" data-for="notaHoy" data-v="Sin falda">Sin falda</button><button type="button" class="chip" data-act="notaChip" data-for="notaHoy" data-v="Algo cómodo">Algo cómodo</button><button type="button" class="chip" data-act="notaChip" data-for="notaHoy" data-v="Sin animal print">Sin animal print</button><button type="button" class="chip" data-act="notaChip" data-for="notaHoy" data-v="Más arreglada">Más arreglada</button><button type="button" class="chip" data-act="notaChip" data-for="notaHoy" data-v="Sin negro">Sin negro</button></div>
+    </div>
     <div id="look"></div>
   </section>
 
@@ -193,6 +202,11 @@ nav.bar .add[aria-current="page"] span.ring{background:var(--gold);color:var(--o
   <section data-view="semana" hidden>
     <div style="display:grid;gap:4px"><span class="eyebrow">Próximos 7 días</span><h2>Mi semana</h2></div>
     <p class="muted">Usa la temperatura de “¿Qué me pongo?”. Elige la ocasión de cada día y deja que Claude reparta las prendas sin repetir.</p>
+    <div class="nota-box">
+      <label for="notaSem" class="eyebrow">Para la estilista</label>
+      <div class="nota-in"><textarea id="notaSem" rows="2" maxlength="300" placeholder="Ej.: el jueves nada de tacón, esta semana me apetece llevar el blazer rosa"></textarea><button type="button" class="btn ghost sm" data-act="notaBorrar" data-for="notaSem" aria-label="Borrar nota">✕</button></div>
+      <div class="chips mini"><button type="button" class="chip" data-act="notaChip" data-for="notaSem" data-v="Nada de tacón">Nada de tacón</button><button type="button" class="chip" data-act="notaChip" data-for="notaSem" data-v="Sin falda">Sin falda</button><button type="button" class="chip" data-act="notaChip" data-for="notaSem" data-v="Algo cómodo">Algo cómodo</button><button type="button" class="chip" data-act="notaChip" data-for="notaSem" data-v="Sin animal print">Sin animal print</button><button type="button" class="chip" data-act="notaChip" data-for="notaSem" data-v="Más arreglada">Más arreglada</button><button type="button" class="chip" data-act="notaChip" data-for="notaSem" data-v="Sin negro">Sin negro</button></div>
+    </div>
     <div class="row"><button class="btn gold" type="button" data-act="planSemana" id="btnSemana">Planificar los días libres</button></div>
     <div id="semErr"></div>
     <div id="dias" style="display:grid;gap:12px"></div>
@@ -473,6 +487,7 @@ function renderHoy(){
   $("#b-manana").setAttribute("aria-pressed",S.dia==="manana");
   $("#hoyFecha").textContent=largo(fechaSel());
   $("#ocasChips").innerHTML=OCAS.map(o=>`<button type="button" class="chip" data-act="ocasion" data-v="${esc(o)}" aria-pressed="${o===S.ocasion}">${esc(o)}</button>`).join("");
+  if(document.activeElement!==$("#notaHoy")) $("#notaHoy").value=ls.get("kc.notaHoy","");
   if(document.activeElement!==$("#tmin")) $("#tmin").value=S.tmin;
   if(document.activeElement!==$("#tmax")) $("#tmax").value=S.tmax;
   renderLook();
@@ -566,6 +581,7 @@ const estiloUsuaria=()=>ls.get("kc.estilo",ESTILO_DEF).trim();
 const REGLAS_TXT=()=>{const e=estiloUsuaria();return e?`Lo que te ha contado sobre su estilo:\n${e}`:""};
 const esAnimal=p=>/leopardo|cebra|animal/i.test([p.tono,p.nombre,p.color].join(" "));
 const animalReciente=f=>recientes(f,2).some(id=>{const p=S.prendas.get(id);return p&&esAnimal(p)});
+const notaTxt=k=>{const t=ls.get("kc."+k,"").trim();return t?`Lo que te pide para esta vez (tiene prioridad sobre todo lo demás): ${t}`:""};
 const pensar=()=>ls.get("kc.pensar",true)&&ls.get("kc.sinPensar","")!==S.modelo;
 const limpiaPiezas=arr=>Array.isArray(arr)?[...new Set(arr.map(String))].filter(id=>S.prendas.has(id)):[];
 
@@ -577,6 +593,7 @@ async function pedirLook(f,ocasion,evitar=[]){
 Ocasión: ${ocasion}. Temperatura: ${S.tmin} a ${S.tmax} °C.
 ${REGLAS_TXT()}
 ${animalReciente(f)?"Estos días ya ha llevado estampado animal: hoy evítalo.":""}
+${notaTxt("notaHoy")}
 ${evitar.length?`Debe ser claramente distinto del look anterior (${evitar.join(", ")}).`:""}
 
 Prendas (id|categoría|prenda|color|detalle|estilo):
@@ -723,6 +740,7 @@ function renderFavs(){
 const semana=()=>Array.from({length:7},(_,i)=>ymd(addDays(new Date(),i)));
 const ocasDia=f=>S.planes.get(f)?.ocasion||S.semOcas[f]||([0,6].includes(parse(f).getDay())?"Fin de semana":"Trabajo");
 function renderSemana(){
+  if(document.activeElement!==$("#notaSem")) $("#notaSem").value=ls.get("kc.notaSem","");
   const hoy=ymd(new Date()), man=ymd(addDays(new Date(),1));
   $("#btnSemana").disabled=!hayClave()||!!S.semBusy||!S.prendas.size;
   $("#btnSemana").textContent=S.semBusy?"Planificando…":"Planificar los días libres";
@@ -749,6 +767,7 @@ ${dias.map(f=>`- ${f} (${largo(f)}): ${ocasDia(f)}`).join("\n")}
 Temperatura prevista: ${S.tmin} a ${S.tmax} °C.
 ${REGLAS_TXT()}
 Reparte bien: no repitas la misma parte de arriba en la semana y evita repetir parte de abajo en días seguidos. Zapatos, bolsos y joyas pueden repetirse. Como mucho uno o dos looks de la semana con estampado animal.
+${notaTxt("notaSem")}
 ${fijos.length?`Estos días ya están decididos, tenlos en cuenta para no repetir:\n${fijos.join("\n")}`:""}
 
 Prendas (id|categoría|prenda|color|detalle|estilo):
@@ -814,7 +833,7 @@ document.addEventListener("click",async ev=>{
     case "otro": { const fs=fechaSel(), prev=S.propuesta[fs]||S.planes.get(fs); pedirLook(fs,S.ocasion,prev?prev.piezas:[]); break; }
     case "parar": S.busy&&S.busy.ctl.abort(); break;
     case "preparar": { const fs=fechaSel(), l=S.propuesta[fs]; if(!l) break;
-      try{ await guardar("planes",{id:fs,fecha:fs,...l}); delete S.propuesta[fs]; toast(S.dia==="manana"?"Listo para mañana":"Listo para hoy"); }catch{ toast("No se ha podido guardar."); }
+      try{ await guardar("planes",{id:fs,fecha:fs,...l}); delete S.propuesta[fs]; ls.del("kc.notaHoy"); $("#notaHoy").value=""; toast(S.dia==="manana"?"Listo para mañana":"Listo para hoy"); }catch{ toast("No se ha podido guardar."); }
       renderLook(); break; }
     case "fav": { const l=S.propuesta[fechaSel()]; l&&guardarFav(l); break; }
     case "favPlan": { const l=S.planes.get(fechaSel()); l&&guardarFav(l); break; }
@@ -854,6 +873,8 @@ document.addEventListener("click",async ev=>{
       catch(e){ st.innerHTML=`<span class="err">${esc(errMsg(e))}</span>`; }
       finally{ b.disabled=false; renderAll(); } break; }
     case "exportar": exportar(); break;
+    case "notaChip": { const id=b.dataset.for, el=$("#"+id), t=el.value.trim(); el.value=t?(t.replace(/[.,;]$/,"")+", "+v.toLowerCase()):v; ls.set("kc."+id,el.value); break; }
+    case "notaBorrar": { const id=b.dataset.for; $("#"+id).value=""; ls.del("kc."+id); break; }
     case "guardarEstilo": ls.set("kc.estilo",$("#estilo").value.slice(0,1500)); toast("Estilo guardado"); break;
     case "estiloDef": ls.del("kc.estilo"); $("#estilo").value=ESTILO_DEF; toast("Texto inicial recuperado"); break;
     case "cargarCatalogo": cargarCatalogo(); break;
@@ -869,6 +890,7 @@ document.addEventListener("change",async ev=>{
 $("#sheet").addEventListener("click",ev=>{ if(ev.target.id==="sheet") cerrarFicha(); });
 document.addEventListener("keydown",ev=>{ if(ev.key==="Escape"&&!$("#sheet").hidden) cerrarFicha(); });
 ["tmin","tmax"].forEach(k=>$("#"+k).addEventListener("input",e=>{const n=Number(e.target.value);if(e.target.value!==""&&Number.isFinite(n)){S[k]=n;ls.set("kc."+k,n)}}));
+["notaHoy","notaSem"].forEach(id=>$("#"+id).addEventListener("input",e=>ls.set("kc."+id,e.target.value.slice(0,300))));
 $("#buscar").addEventListener("input",e=>{S.q=e.target.value;renderGrid()});
 $("#fotos").addEventListener("change",e=>{ if(e.target.files.length) nuevasFotos(e.target.files); e.target.value=""; });
 $("#importar").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) importar(f); e.target.value=""; });
