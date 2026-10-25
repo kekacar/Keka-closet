@@ -156,10 +156,6 @@ nav.bar .add[aria-current="page"] span.ring{background:var(--gold);color:var(--o
 .chips.mini .chip{padding:4px 10px;font-size:12.5px;color:var(--muted)}
 .set select{padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);width:100%}
 /* v9: tres propuestas, diario de gustos y tiempo */
-.pager{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.pager .pdots{display:flex;gap:6px}
-.pager .pdots i{width:7px;height:7px;border-radius:50%;background:var(--line)}
-.pager .pdots i.on{background:var(--gold)}
 details.fb{border-top:1px dashed var(--line);padding-top:10px}
 details.fb summary{cursor:pointer;font-size:14px;color:var(--muted);list-style:none}
 details.fb summary::-webkit-details-marker{display:none}
@@ -310,7 +306,7 @@ details.fb .lbl{display:block;font-size:12px;color:var(--muted);margin-top:10px}
       <div class="fields"><label class="full">Mi estilo<textarea id="estilo" rows="4" placeholder="Ej.: En el trabajo prefiero no llevar minifalda. No me gusta mezclar negro y marino."></textarea></label></div>
       <div class="row"><button class="btn primary sm" type="button" data-act="guardarEstilo">Guardar estilo</button><button class="btn ghost sm" type="button" data-act="estiloDef">Volver al texto inicial</button></div>
       <label class="row" style="gap:8px;font-size:14px"><input type="checkbox" id="pensar"> Pensar más cada look</label>
-      <p class="muted" style="font-size:13px">Claude valora varias combinaciones antes de proponerte una. Looks mejor pensados, pero cada uno tarda unos segundos más y cuesta aproximadamente el doble.</p>
+      <p class="muted" style="font-size:13px">Claude valora varias combinaciones antes de proponerte una. Piensa de forma breve antes de proponer. Looks algo mejor pensados; cada petición tarda unos segundos más y cuesta algo más. Si se alarga demasiado, la app repite sin pensar para no gastar de más.</p>
     </div>
     <div class="card">
       <h3 class="sub">Lo que la estilista sabe de ti</h3>
@@ -473,12 +469,11 @@ async function aBase64(blob){const b=new Uint8Array(await blob.arrayBuffer());le
 /* Salidas estructuradas: la API garantiza un JSON válido con esta forma (sin coste extra) */
 const str={type:"string"};
 const LOOK_SCHEMA={type:"object",properties:{titulo:str,piezas:{type:"array",items:str},nota:str},required:["titulo","piezas","nota"],additionalProperties:false};
-const SCH_LOOKS={type:"object",properties:{looks:{type:"array",items:LOOK_SCHEMA}},required:["looks"],additionalProperties:false};
 const SCH_SEMANA={type:"object",properties:{dias:{type:"array",items:{type:"object",properties:{fecha:str,titulo:str,piezas:{type:"array",items:str},nota:str},required:["fecha","titulo","piezas","nota"],additionalProperties:false}}},required:["dias"],additionalProperties:false};
 const SCH_ETIQUETA={type:"object",properties:Object.fromEntries(["nombre","categoria","marca","color","tono","estilo","estacion","descripcion"].map(k=>[k,str])),required:["nombre","categoria","marca","color","tono","estilo","estacion","descripcion"],additionalProperties:false};
 async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=false,formato=null}={}){
   if(formato&&ls.get("kc.sinFormato","")===S.modelo) formato=null;
-  const oc=Object.assign({},pensar?{effort:"medium"}:{},formato?{format:{type:"json_schema",schema:formato}}:{});
+  const oc=Object.assign({},pensar?{effort:"low"}:{},formato?{format:{type:"json_schema",schema:formato}}:{});
   if(!S.key) throw new ClaudeError("sin_clave");
   const content=[];
   if(imagen) content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:await aBase64(imagen)}});
@@ -489,7 +484,7 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=fal
       "content-type":"application/json","x-api-key":S.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
       body:JSON.stringify(Object.assign({model:S.modelo,max_tokens:maxTokens,messages:[{role:"user",content}]},
         system?{system}:{},
-        pensar?{thinking:{type:"adaptive"},max_tokens:maxTokens+12000}:{},
+        pensar?{thinking:{type:"adaptive"},max_tokens:maxTokens+6000}:{},
         Object.keys(oc).length?{output_config:oc}:{}))});
   }catch(e){ if(e.name==="AbortError") throw new ClaudeError("cancelado"); throw new ClaudeError("red"); }
   let data=null; try{data=await r.json()}catch{}
@@ -506,14 +501,17 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=fal
     throw new ClaudeError("otro",m);
   }
   anotarUso(data.usage);
-  if(formato&&data.stop_reason==="max_tokens") throw new ClaudeError("corto");
   const txt=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
-  S.ultima=`Versión ${APP_V} · ${S.modelo} · motivo de parada: ${data.stop_reason||"?"} · formato JSON: ${formato?"sí":"no"} · pensar: ${pensar?"sí":"no"} · tokens de salida: ${(data.usage||{}).output_tokens??"?"}\n${txt.slice(0,700)||"(sin texto)"}`;
+  S.ultima=`Versión ${APP_V} · ${S.modelo} · motivo de parada: ${data.stop_reason||"?"} · formato JSON: ${formato?"sí":"no"} · pensar: ${pensar?"sí":"no"} · tokens de salida: ${(data.usage||{}).output_tokens??"?"} (pensando: ${((data.usage||{}).output_tokens_details||{}).thinking_tokens??"?"})\n${txt.slice(0,700)||"(sin texto)"}`;
+  if(data.stop_reason==="max_tokens"){
+    if(pensar) return pedirClaude(texto,{imagen,signal,maxTokens,system,pensar:false,formato}); // se pasó pensando: repite sin pensar (barato)
+    if(formato) throw new ClaudeError("corto");
+  }
   if(!txt.trim()) throw new ClaudeError("vacio",data.stop_reason||"");
   return txt;
 }
 /* Gasto estimado: tokens reales que devuelve la API × precio del modelo ($ por millón) */
-const APP_V="v12";
+const APP_V="v14";
 const PRECIO={"claude-sonnet-5-5":[2,10],"claude-haiku-5-5":[0.1,0.5]};
 const mesActual=()=>ymd(new Date()).slice(0,7);
 function anotarUso(u){
@@ -677,24 +675,23 @@ function lookCard(l,{estado,acciones,extra=""}){
     ${extra}<div class="row">${acciones}</div></article>`;
 }
 const RAZONES=["El color","Muy arreglado","Muy informal","Poco abrigo","Demasiado abrigo","Poco cómodo","Lo llevo demasiado"];
-const pager=pr=>`<div class="pager"><button class="btn sm" type="button" data-act="opc" data-v="-1" aria-label="Look anterior">‹ Anterior</button><span class="pdots">${pr.opciones.map((_,j)=>`<i class="${j===pr.i?"on":""}"></i>`).join("")}</span><button class="btn sm" type="button" data-act="opc" data-v="1" aria-label="Look siguiente">Siguiente ›</button></div>`;
 const fbBox=l=>`<details class="fb" ${S.fbOpen?"open":""}><summary>¿Qué no te convence? Dímelo y aprendo</summary>
   <div class="chips">${RAZONES.map(x=>`<button type="button" class="chip" data-act="fbRazon" data-v="${esc(x)}" aria-pressed="${S.fb.razones.includes(x)}">${esc(x)}</button>`).join("")}</div>
   <span class="lbl">No me apetece:</span>
   <div class="chips">${porLook(l.piezas||[]).map(p=>`<button type="button" class="chip" data-act="fbPieza" data-id="${esc(p.id)}" aria-pressed="${S.fb.prendas.includes(p.id)}">${esc(p.nombre)}</button>`).join("")}</div>
-  <p class="hint" style="margin-top:8px">Luego pulsa “Otros 3 looks”.</p></details>`;
+  <p class="hint" style="margin-top:8px">Luego pulsa “Otro look”.</p></details>`;
 function renderLook(){
   const f=fechaSel(), el=$("#look"), plan=S.planes.get(f), pr=S.propuesta[f], cuando=S.dia==="manana"?"mañana":"hoy";
   if(S.busy&&S.busy.fecha===f){
-    el.innerHTML=`<div class="card"><div class="thinking"><span class="dots"><i></i><i></i><i></i></span><span>${S.busy.ancla?`Combinando con ${esc(S.busy.ancla)}…`:"Preparando tres looks…"}</span></div><div><button class="btn ghost sm" type="button" data-act="parar">Parar</button></div></div>`;return;
+    el.innerHTML=`<div class="card"><div class="thinking"><span class="dots"><i></i><i></i><i></i></span><span>${S.busy.ancla?`Combinando con ${esc(S.busy.ancla)}…`:"Combinando tu armario…"}</span></div><div><button class="btn ghost sm" type="button" data-act="parar">Parar</button></div></div>`;return;
   }
   let html=S.err[f]?`<p class="err">${esc(S.err[f])}</p>${S.errDet[f]?`<details class="fb"><summary>Ver detalle técnico (hazle captura)</summary><pre style="white-space:pre-wrap;font:12px/1.4 var(--f-mono);margin:8px 0 0">${esc(S.errDet[f])}</pre></details>`:""}`:"";
   if(pr){
     const prop=pr.opciones[pr.i], n=pr.opciones.length, pa=pr.ancla&&S.prendas.get(pr.ancla);
-    html+=lookCard(prop,{estado:`<span class="status">${n>1?`Propuesta ${pr.i+1} de ${n}`:"Propuesta"}</span>${pa?`<span class="ancla">Con tu ${esc(pa.nombre.toLowerCase())}</span>`:""}`,
-      extra:(n>1?pager(pr):"")+fbBox(prop),acciones:
+    html+=lookCard(prop,{estado:`<span class="status">Propuesta</span>${pa?`<span class="ancla">Con tu ${esc(pa.nombre.toLowerCase())}</span>`:""}`,
+      extra:fbBox(prop),acciones:
       `<button class="btn primary" type="button" data-act="preparar">Dejar preparado</button>
-       <button class="btn" type="button" data-act="otro">Otros 3 looks</button>
+       <button class="btn" type="button" data-act="otro">Otro look</button>
        <button class="btn ghost" type="button" data-act="fav">♡ Favorito</button>`});
   } else if(plan){
     html+=lookCard(plan,{estado:`<span class="status ok">✓ Preparado para ${cuando}</span>`,acciones:
@@ -708,7 +705,7 @@ function renderLook(){
       <div class="row" style="justify-content:center"><button class="btn gold" type="button" data-act="cargarCatalogo">Cargar mis 45 prendas</button><button class="btn" type="button" data-act="tab" data-v="anadir">Añadir fotos</button></div></div>`;
   } else {
     html+=`<div class="card empty"><span class="muted">${S.prendas.size} prendas listas para combinar</span>
-      <button class="btn gold" type="button" data-act="sugerir" ${hayClave()?"":"disabled"}>Sugerir looks para ${cuando}</button>
+      <button class="btn gold" type="button" data-act="sugerir" ${hayClave()?"":"disabled"}>Sugerir look para ${cuando}</button>
       <span class="muted" style="font-size:13px">¿Ya sabes qué prenda te apetece? Ábrela en el armario y pulsa “Créame un look con ella”.</span></div>`;
   }
   el.innerHTML=html;
@@ -777,13 +774,13 @@ const REGLAS_TXT=()=>{const e=estiloUsuaria();return e?`Lo que te ha contado sob
 const esAnimal=p=>/leopardo|cebra|animal/i.test([p.tono,p.nombre,p.color].join(" "));
 const animalReciente=f=>recientes(f,2).some(id=>{const p=S.prendas.get(id);return p&&esAnimal(p)});
 const notaTxt=k=>{const t=ls.get("kc."+k,"").trim();return t?`Lo que te pide para esta vez (tiene prioridad sobre todo lo demás): ${t}`:""};
-const pensar=()=>ls.get("kc.pensar",true)&&ls.get("kc.sinPensar","")!==S.modelo;
+const pensar=()=>ls.get("kc.pensar",false)&&ls.get("kc.sinPensar","")!==S.modelo;
 const limpiaPiezas=arr=>Array.isArray(arr)?[...new Set(arr.map(String))].filter(id=>S.prendas.has(id)):[];
 const juntar=arr=>arr.filter(Boolean).join("\n");
 
 /* Tres looks en una sola petición: las prendas se envían una vez y solo crece un poco la respuesta */
 /* Acierto: cuántas peticiones de look acaban en "Dejar preparado" y cuántas a la primera (sin pedir otros 3) */
-const ACI_DEF=()=>({desde:ymd(new Date()),rondas:0,preparadas:0,primera:0,opc:[0,0,0]});
+const ACI_DEF=()=>({desde:ymd(new Date()),rondas:0,preparadas:0,primera:0});
 function acierto(fn){const a=ls.get("kc.acierto",null)||ACI_DEF();fn(a);ls.set("kc.acierto",a)}
 async function pedirLook(f,ocasion,{evitar=[],vetadas=[],motivo="",ancla=null,intentos=1}={}){
   if(S.busy) return;
@@ -792,30 +789,30 @@ async function pedirLook(f,ocasion,{evitar=[],vetadas=[],motivo="",ancla=null,in
   const t=tempDe(f);
   const sel=seleccion([ocasion],{fechas:[f],excluir:evitar,vetadas,tmin:t.min,tmax:t.max,lluvia:t.lluvia,ancla:pa?pa.id:null});
   const prompt=juntar([
-`Propón TRES looks completos para el ${largo(f)} usando SOLO prendas de esta lista, ya preseleccionada para la ocasión y el tiempo. Que sean claramente distintos entre sí${pa?" (aparte de la prenda que quiere llevar)":" (que no compartan la parte de arriba ni la de abajo)"} y ordénalos del que más te convence al que menos.`,
+`Propón UN look completo para el ${largo(f)} usando SOLO prendas de esta lista, ya preseleccionada para la ocasión y el tiempo. Antes de decidir, valora varias combinaciones y quédate con la mejor.`,
 `Ocasión: ${ocasion}. ${tiempoTxt(t)}`,
-pa?`Quiere llevar sí o sí: ${pa.nombre} (${pa.id}). Los tres looks deben construirse alrededor de esa prenda.`:"",
+pa?`Quiere llevar sí o sí: ${pa.nombre} (${pa.id}). El look debe construirse alrededor de esa prenda.`:"",
 REGLAS_TXT(), favTxt([ocasion]), diarioTxt(),
 animalReciente(f)&&!(pa&&esAnimal(pa))?"Estos días ya ha llevado estampado animal: hoy evítalo.":"",
 notaTxt("notaHoy"),
-motivo?`De las propuestas que acaba de ver no le convenció: ${motivo}. Tenlo muy en cuenta.`:"",
-evitar.length?`Deben ser distintos de los looks que acaba de ver (${evitar.join(", ")}).`:"",
+motivo?`Del look que acaba de ver no le convenció: ${motivo}. Tenlo muy en cuenta.`:"",
+evitar.length?`Debe ser claramente distinto del look que acaba de ver (${evitar.join(", ")}).`:"",
 `\nPrendas (id|categoría|prenda|color|detalle|estilo):\n${sel.texto}`,
-`\nFormato: {"looks":[{"titulo":"nombre corto y con gracia para el look","piezas":["p07","p14"],"nota":"una o dos frases: qué armonía de color usa (p. ej. base marino, acento cobre), por qué funciona y un consejo práctico"}]}`]);
+`\nFormato: {"titulo":"nombre corto y con gracia para el look","piezas":["p07","p14"],"nota":"una o dos frases: qué armonía de color usa (p. ej. base marino, acento cobre), por qué funciona y un consejo práctico"}`]);
   try{
-    const r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:2000,system:ESTILISTA,pensar:pensar(),formato:SCH_LOOKS});
-    const arr=Array.isArray(r&&r.looks)?r.looks:(r&&r.piezas?[r]:[]), opciones=[];
+    const r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:1200,system:ESTILISTA,pensar:pensar(),formato:LOOK_SCHEMA});
+    const arr=r&&r.piezas?[r]:(Array.isArray(r&&r.looks)?r.looks:[]), opciones=[];
     for(const x of arr){
       const piezas=limpiaPiezas(x&&x.piezas); if(pa&&!piezas.includes(pa.id)) piezas.unshift(pa.id);
       if(piezas.length<2) continue;
       opciones.push({titulo:String(x.titulo||"Tu look").slice(0,80),piezas,nota:String(x.nota||"").slice(0,400),ocasion,vistas:`${sel.enviadas} de ${sel.total}`});
-      if(opciones.length===3) break;
+      break;
     }
     if(!opciones.length) throw new ClaudeError("encaje");
     S.propuesta[f]={opciones,i:0,ancla:pa?pa.id:null,intentos};
     if(intentos===1) acierto(a=>a.rondas++);
   }catch(e){ const m=e.code==="encaje"?"La propuesta no encajaba con tu armario. Prueba otra vez.":errMsg(e); if(m) S.err[f]=m;
-    S.errDet[f]=["json","vacio","corto","encaje","otro","modelo"].includes(e.code)?(S.ultima||"")+(e.code==="otro"||e.code==="modelo"?"\nError: "+(e.message||""):""):""; }
+    S.errDet[f]=["json","vacio","corto","encaje","otro","modelo","saturado","limite"].includes(e.code)?(S.ultima||"")+(e.code==="otro"||e.code==="modelo"?"\nError: "+(e.message||""):""):""; }
   finally{ S.busy=null; renderLook(); }
 }
 
@@ -1002,7 +999,7 @@ function renderAjustes(){
   $("#modelo").value=S.modelo;
   if(!$("#estadoClave").dataset.fijo) $("#estadoClave").innerHTML=S.key?`<span class="status ok">✓ Clave guardada en este móvil</span>`:`<span class="muted">Todavía no hay clave.</span>`;
   if(document.activeElement!==$("#estilo")) $("#estilo").value=estiloUsuaria();
-  $("#pensar").checked=!!ls.get("kc.pensar",true);
+  $("#pensar").checked=!!ls.get("kc.pensar",false);
   const g=ls.get("kc.gasto",{})[mesActual()]||{usd:0,n:0};
   $("#gasto").textContent=`${g.usd.toFixed(g.usd<1?3:2).replace(".",",")} $ · ${g.n} ${g.n===1?"petición":"peticiones"}`;
   const geo=ls.get("kc.geo",null);
@@ -1013,7 +1010,7 @@ function renderAjustes(){
   $("#btnDiarioBorrar").hidden=!di.length;
   const ac=ls.get("kc.acierto",null)||ACI_DEF(), pc=(x,y)=>y?Math.round(x*100/y)+" %":"–";
   $("#acierto").innerHTML=ac.rondas?`<p style="font:500 22px var(--f-mono);font-variant-numeric:tabular-nums">${pc(ac.primera,ac.rondas)} a la primera</p>
-    <p class="muted" style="font-size:14px">Desde el ${esc(largo(ac.desde))}: ${ac.rondas} ${ac.rondas===1?"petición":"peticiones"} de look, ${ac.preparadas} ${ac.preparadas===1?"dejado preparado":"dejados preparados"} (${pc(ac.preparadas,ac.rondas)}). Elegiste la propuesta 1 ${ac.opc[0]} ${ac.opc[0]===1?"vez":"veces"}, la 2 ${ac.opc[1]} y la 3 ${ac.opc[2]}.</p>`
+    <p class="muted" style="font-size:14px">Desde el ${esc(largo(ac.desde))}: ${ac.rondas} ${ac.rondas===1?"petición":"peticiones"} de look, ${ac.preparadas} ${ac.preparadas===1?"dejado preparado":"dejados preparados"} (${pc(ac.preparadas,ac.rondas)}).</p>`
     :`<p class="muted" style="font-size:14px">Aún no hay datos. Cuenta cuántas veces dejas preparado un look sin pedir otros 3.</p>`;
   $("#btnAciertoReset").hidden=!ac.rondas;
   $("#catalogoCard").hidden=CATALOGO.every(c=>S.prendas.has(idCat(c[0])));
@@ -1060,13 +1057,12 @@ document.addEventListener("click",async ev=>{
       if(motivo&&pr){ const l=pr.opciones[pr.i]; anotarDiario("no",`«${l.titulo}» (${nombres(l.piezas)}): ${motivo}`); }
       const ancla=pr&&pr.ancla&&!vetadas.includes(pr.ancla)?pr.ancla:null;
       pedirLook(fs,S.ocasion,{evitar:[...new Set(vistas)].filter(x=>x!==ancla),vetadas,motivo,ancla,intentos:pr?(pr.intentos||1)+1:1}); break; }
-    case "opc": { const pr=S.propuesta[fechaSel()]; if(!pr) break; const n=pr.opciones.length; pr.i=(pr.i+Number(v)+n)%n; renderLook(); break; }
     case "fbRazon": b.setAttribute("aria-pressed",alternar(S.fb.razones,v)); break;
     case "fbPieza": b.setAttribute("aria-pressed",alternar(S.fb.prendas,b.dataset.id)); break;
     case "parar": S.busy&&S.busy.ctl.abort(); break;
     case "preparar": { const fs=fechaSel(), l=propActual(fs), pr=S.propuesta[fs]; if(!l) break;
       try{ await guardar("planes",{id:fs,fecha:fs,...l});
-        acierto(a=>{a.preparadas++; if((pr.intentos||1)===1)a.primera++; if(pr.i<3)a.opc[pr.i]++;}); anotarDiario("si",`«${l.titulo}» para ${(l.ocasion||"").toLowerCase()}: ${nombres(l.piezas)}`); delete S.propuesta[fs]; ls.del("kc.notaHoy"); $("#notaHoy").value=""; toast(S.dia==="manana"?"Listo para mañana":"Listo para hoy"); }catch{ toast("No se ha podido guardar."); }
+        acierto(a=>{a.preparadas++; if((pr.intentos||1)===1)a.primera++;}); anotarDiario("si",`«${l.titulo}» para ${(l.ocasion||"").toLowerCase()}: ${nombres(l.piezas)}`); delete S.propuesta[fs]; ls.del("kc.notaHoy"); $("#notaHoy").value=""; toast(S.dia==="manana"?"Listo para mañana":"Listo para hoy"); }catch{ toast("No se ha podido guardar."); }
       renderLook(); break; }
     case "fav": { const l=propActual(fechaSel()); l&&guardarFav(l); break; }
     case "favPlan": { const l=S.planes.get(fechaSel()); l&&guardarFav(l); break; }
@@ -1138,14 +1134,6 @@ document.addEventListener("keydown",ev=>{ if(ev.key==="Escape"&&!$("#sheet").hid
   S.tmin=mn; S.tmax=mx; ls.set("kc.tmin",mn); ls.set("kc.tmax",mx); fijarTemp(fechaSel(),mn,mx);
   $("#tiempoInfo").innerHTML=tiempoInfo(fechaSel(),tempDe(fechaSel()));
 }));
-/* Deslizar el look a izquierda o derecha para ver las otras propuestas */
-let toque=null;
-$("#look").addEventListener("touchstart",e=>{const t=e.touches[0];toque=[t.clientX,t.clientY]},{passive:true});
-$("#look").addEventListener("touchend",e=>{
-  if(!toque) return; const t=e.changedTouches[0], dx=t.clientX-toque[0], dy=t.clientY-toque[1]; toque=null;
-  const pr=S.propuesta[fechaSel()]; if(!pr||pr.opciones.length<2||Math.abs(dx)<60||Math.abs(dy)>50) return;
-  const n=pr.opciones.length; pr.i=(pr.i+(dx<0?1:-1)+n)%n; renderLook();
-});
 ["notaHoy","notaSem"].forEach(id=>$("#"+id).addEventListener("input",e=>ls.set("kc."+id,e.target.value.slice(0,300))));
 $("#buscar").addEventListener("input",e=>{S.q=e.target.value;renderGrid()});
 $("#fotos").addEventListener("change",e=>{ if(e.target.files.length) nuevasFotos(e.target.files); e.target.value=""; });
