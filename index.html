@@ -351,6 +351,7 @@ details.fb .lbl{display:block;font-size:12px;color:var(--muted);margin-top:10px}
       <p class="muted" style="font-size:14px">Añade Kekas Closet a tu pantalla de inicio para abrirla como una app.</p>
       <div class="row"><button class="btn sm primary" type="button" data-act="instalar">Instalar app</button></div>
     </div>
+    <p class="count" id="appVersion" style="text-align:center"></p>
   </section>
 </main>
 
@@ -459,7 +460,7 @@ const S={
   tab:"hoy", dia:new Date().getHours()>=17?"manana":"hoy",
   ocasion:ls.get("kc.ocasion","Trabajo"), tmin:ls.get("kc.tmin",9), tmax:ls.get("kc.tmax",19),
   prev:prevGuardada, fb:{razones:[],prendas:[]}, fbOpen:false,
-  cat:"todo", q:"", propuesta:{}, err:{}, busy:null, semOcas:{}, semBusy:null, drafts:[], ficha:null, instalar:null
+  cat:"todo", q:"", propuesta:{}, err:{}, errDet:{}, ultima:"", busy:null, semOcas:{}, semBusy:null, drafts:[], ficha:null, instalar:null
 };
 MAP.prendas=S.prendas; MAP.planes=S.planes; MAP.favoritos=S.favs;
 const hayClave=()=>!!S.key;
@@ -506,9 +507,13 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=fal
   }
   anotarUso(data.usage);
   if(formato&&data.stop_reason==="max_tokens") throw new ClaudeError("corto");
-  return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+  const txt=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+  S.ultima=`Versión ${APP_V} · ${S.modelo} · motivo de parada: ${data.stop_reason||"?"} · formato JSON: ${formato?"sí":"no"} · pensar: ${pensar?"sí":"no"} · tokens de salida: ${(data.usage||{}).output_tokens??"?"}\n${txt.slice(0,700)||"(sin texto)"}`;
+  if(!txt.trim()) throw new ClaudeError("vacio",data.stop_reason||"");
+  return txt;
 }
 /* Gasto estimado: tokens reales que devuelve la API × precio del modelo ($ por millón) */
+const APP_V="v12";
 const PRECIO={"claude-sonnet-5-5":[2,10],"claude-haiku-5-5":[0.1,0.5]};
 const mesActual=()=>ymd(new Date()).slice(0,7);
 function anotarUso(u){
@@ -536,6 +541,7 @@ function errMsg(e){
     case "saturado": return "Claude está saturado ahora mismo. Prueba en un momento.";
     case "modelo": return "El modelo elegido no está disponible. Cambia de modelo en Ajustes.";
     case "json": return "La respuesta llegó incompleta. Prueba otra vez.";
+    case "vacio": return "La estilista no ha devuelto ningún look. Prueba otra vez.";
     case "corto": return "La estilista se ha quedado sin espacio para responder. Prueba otra vez.";
     case "red": return "Sin conexión con Claude. Revisa tu internet.";
     default: return "Algo ha fallado al hablar con Claude."+(e&&e.message?" ("+e.message.slice(0,120)+")":"");
@@ -682,7 +688,7 @@ function renderLook(){
   if(S.busy&&S.busy.fecha===f){
     el.innerHTML=`<div class="card"><div class="thinking"><span class="dots"><i></i><i></i><i></i></span><span>${S.busy.ancla?`Combinando con ${esc(S.busy.ancla)}…`:"Preparando tres looks…"}</span></div><div><button class="btn ghost sm" type="button" data-act="parar">Parar</button></div></div>`;return;
   }
-  let html=S.err[f]?`<p class="err">${esc(S.err[f])}</p>`:"";
+  let html=S.err[f]?`<p class="err">${esc(S.err[f])}</p>${S.errDet[f]?`<details class="fb"><summary>Ver detalle técnico (hazle captura)</summary><pre style="white-space:pre-wrap;font:12px/1.4 var(--f-mono);margin:8px 0 0">${esc(S.errDet[f])}</pre></details>`:""}`:"";
   if(pr){
     const prop=pr.opciones[pr.i], n=pr.opciones.length, pa=pr.ancla&&S.prendas.get(pr.ancla);
     html+=lookCard(prop,{estado:`<span class="status">${n>1?`Propuesta ${pr.i+1} de ${n}`:"Propuesta"}</span>${pa?`<span class="ancla">Con tu ${esc(pa.nombre.toLowerCase())}</span>`:""}`,
@@ -782,7 +788,7 @@ function acierto(fn){const a=ls.get("kc.acierto",null)||ACI_DEF();fn(a);ls.set("
 async function pedirLook(f,ocasion,{evitar=[],vetadas=[],motivo="",ancla=null,intentos=1}={}){
   if(S.busy) return;
   const pa=ancla?S.prendas.get(ancla):null, ctl=new AbortController();
-  S.busy={fecha:f,ctl,ancla:pa?pa.nombre.toLowerCase():""}; delete S.err[f]; S.fb={razones:[],prendas:[]}; S.fbOpen=false; renderLook();
+  S.busy={fecha:f,ctl,ancla:pa?pa.nombre.toLowerCase():""}; delete S.err[f]; delete S.errDet[f]; S.fb={razones:[],prendas:[]}; S.fbOpen=false; renderLook();
   const t=tempDe(f);
   const sel=seleccion([ocasion],{fechas:[f],excluir:evitar,vetadas,tmin:t.min,tmax:t.max,lluvia:t.lluvia,ancla:pa?pa.id:null});
   const prompt=juntar([
@@ -808,7 +814,8 @@ evitar.length?`Deben ser distintos de los looks que acaba de ver (${evitar.join(
     if(!opciones.length) throw new ClaudeError("encaje");
     S.propuesta[f]={opciones,i:0,ancla:pa?pa.id:null,intentos};
     if(intentos===1) acierto(a=>a.rondas++);
-  }catch(e){ const m=e.code==="encaje"?"La propuesta no encajaba con tu armario. Prueba otra vez.":errMsg(e); if(m) S.err[f]=m; }
+  }catch(e){ const m=e.code==="encaje"?"La propuesta no encajaba con tu armario. Prueba otra vez.":errMsg(e); if(m) S.err[f]=m;
+    S.errDet[f]=["json","vacio","corto","encaje","otro","modelo"].includes(e.code)?(S.ultima||"")+(e.code==="otro"||e.code==="modelo"?"\nError: "+(e.message||""):""):""; }
   finally{ S.busy=null; renderLook(); }
 }
 
@@ -1011,6 +1018,7 @@ function renderAjustes(){
   $("#btnAciertoReset").hidden=!ac.rondas;
   $("#catalogoCard").hidden=CATALOGO.every(c=>S.prendas.has(idCat(c[0])));
   $("#instalarCard").hidden=!S.instalar;
+  $("#appVersion").textContent=`Kekas Closet ${APP_V}`;
   if(navigator.storage&&navigator.storage.estimate) navigator.storage.estimate().then(e=>{$("#espacio").textContent=`Ocupado en el móvil: ${(e.usage/1048576).toFixed(1)} MB`}).catch(()=>{});
 }
 const idCat=n=>"p"+String(n).padStart(2,"0");
