@@ -1,0 +1,1157 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kekas Closet</title>
+<meta name="theme-color" content="#ebeae8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1d21" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Figtree:wght@400;500;600&family=DM+Mono:wght@400;500&family=Cinzel+Decorative:wght@700&display=swap">
+<style>
+/* Layout: app de una columna; barra inferior fija; contenido máx. 640px. Paleta gris perla y rosa empolvado (v8) */
+:root{
+  --bg:#ebeae8; --surface:#ffffff; --ink:#34363c; --muted:#74757c; --line:#dad8d5;
+  --gold:#b9717e; --gold-soft:#f4e1e4; --on-gold:#ffffff; --danger:#a3352b; --ok:#3d6b4f;
+  --dust:#d9a3ac; --trail:#e2b6bd;
+  --leo-base:#c8913e; --leo-spot:#2a1a0e; --leo-ring:#6b4419;
+  --f-title:"Cinzel Decorative", "Bodoni Moda", Georgia, serif;
+  --f-display:"Bodoni Moda", "Didot", Georgia, serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"DM Mono", ui-monospace, Menlo, monospace;
+  --nav-h:64px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root{
+  --bg:#1c1d21; --surface:#26272c; --ink:#ecebe8; --muted:#a2a1a8; --line:#36373d;
+  --gold:#e3a3ae; --gold-soft:#4a3237; --on-gold:#1c1d21; --danger:#e48577; --ok:#86c29c;
+  --dust:#9a6a72; --trail:#6e4c52; color-scheme:dark } }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);-webkit-font-smoothing:antialiased}
+img{max-width:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.wrap{max-width:640px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{padding-block:14px 0}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand h1{font:700 26px/1.2 var(--f-title);letter-spacing:.01em;margin:0}
+.gear{border:1px solid var(--line);background:var(--surface);border-radius:50%;width:40px;height:40px;display:grid;place-items:center;color:var(--muted)}
+.gear[aria-current="page"]{color:var(--gold);border-color:var(--gold)}
+.gear svg{width:20px;height:20px}
+.leo{background-color:var(--leo-base);
+  background-image:radial-gradient(circle at 30% 30%,var(--leo-spot) 0 14%,transparent 16%),
+   radial-gradient(circle at 72% 64%,var(--leo-spot) 0 11%,var(--leo-ring) 12% 17%,transparent 19%),
+   radial-gradient(ellipse at 58% 18%,var(--leo-ring) 0 9%,transparent 11%);
+  background-size:22px 18px,27px 23px,17px 15px}
+/* Cenefa: varita mágica con estela de estrellas */
+.band{display:block;width:100%;height:auto;max-height:44px;margin-top:2px;overflow:visible}
+.band .w-ink{fill:var(--ink)} .band .w-acc{fill:var(--gold)} .band .w-dust{fill:var(--dust)} .band .w-grey{fill:var(--muted)} .band .w-core{fill:var(--gold-soft)}
+.band .w-trail{fill:none;stroke:var(--trail)} .band .w-stick{stroke:var(--ink)} .band .w-grip,.band .w-ray{stroke:var(--gold)}
+.band .tw{animation:tw 1.8s ease-in-out infinite} .band .tw2{animation:tw 2.6s ease-in-out infinite}
+@keyframes tw{0%,100%{opacity:.25}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.band .tw,.band .tw2{animation:none;opacity:.8}}
+main{padding-block:18px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom,0px))}
+section[data-view]{display:grid;gap:16px}
+h2{font:600 22px/1.15 var(--f-display);margin:0;text-wrap:balance}
+h3.sub{font:600 17px var(--f-display);margin:0}
+.eyebrow{font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)}
+p{margin:0}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.seg button{border:0;background:none;border-radius:999px;padding:9px 0;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 13px;font-size:14px}
+.chip[aria-pressed="true"]{border-color:var(--gold);background:var(--gold-soft);color:var(--ink);font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.temp{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.temp input{width:64px;padding:7px 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);text-align:center;font-variant-numeric:tabular-nums}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 16px;font-weight:600}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.gold{background:var(--gold);color:var(--on-gold);border-color:var(--gold)}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted);padding-inline:10px}
+.btn.danger{color:var(--danger)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.sm{padding:7px 12px;font-size:14px;border-radius:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:grid;gap:14px}
+.look-head{display:grid;gap:4px}
+.look-head h3{font:600 20px/1.2 var(--f-display);margin:0;text-wrap:balance}
+.status{display:inline-flex;align-items:center;gap:6px;font:500 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
+.status.ok{color:var(--ok)}
+.pieces{display:grid;gap:8px;list-style:none;margin:0;padding:0}
+.piece{display:grid;grid-template-columns:52px 1fr;gap:12px;align-items:center;border:0;background:none;padding:0;text-align:left;width:100%}
+.piece .thumb{width:52px;height:52px;border-radius:10px;overflow:hidden}
+.piece div{min-width:0}
+.piece b{display:block;font-weight:600;font-size:14.5px;line-height:1.3}
+.piece span{font-size:12.5px;color:var(--muted)}
+.nota{font-size:14px;color:var(--muted);border-top:1px dashed var(--line);padding-top:12px}
+.thinking{display:flex;align-items:center;gap:12px}
+.dots{display:inline-flex;gap:4px}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--gold);animation:b 1s infinite ease-in-out}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,80%,100%{opacity:.25}40%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.dots i{animation:none;opacity:.7}}
+.err{color:var(--danger);font-size:14px}
+.search{width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.chips.scroll{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.chips.scroll .chip{white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px}
+.tile{border:0;background:none;padding:0;text-align:left;display:grid;gap:6px;min-width:0}
+.tile .thumb{aspect-ratio:3/4;border-radius:12px;overflow:hidden;max-width:100%;border:1px solid var(--line);position:relative}
+.tile .nm{font-size:13px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tag{position:absolute;left:6px;top:6px;font:500 10px var(--f-mono);letter-spacing:.06em;background:var(--surface);color:var(--ink);border-radius:5px;padding:2px 5px;border:1px solid var(--line)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.sw{width:100%;height:100%;display:grid;place-items:center}
+.sw svg{width:42%;max-width:44px;height:auto;opacity:.55}
+.count{font:500 12px var(--f-mono);color:var(--muted)}
+.drop{display:grid;place-items:center;gap:6px;text-align:center;border:1.5px dashed var(--gold);border-radius:16px;padding:28px 16px;background:var(--surface)}
+.drop b{font:600 18px var(--f-display)}
+.draft{display:grid;grid-template-columns:96px 1fr;gap:14px;align-items:start}
+.draft .thumb{width:96px;aspect-ratio:3/4;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.draft > div{min-width:0}
+@media (max-width:420px){.draft{grid-template-columns:1fr}.draft .thumb{width:120px}}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fields label{display:grid;gap:3px;font-size:12px;color:var(--muted);min-width:0}
+.fields .full{grid-column:1/-1}
+.fields input,.fields select,.fields textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font-size:14px}
+.fields textarea{min-height:58px;resize:vertical}
+.pickbox{display:grid;gap:6px;font-size:12px;color:var(--muted)}
+.pick .chip{padding:5px 11px;font-size:13px;color:var(--ink)}
+.hint{margin:0;font-size:12px;color:var(--muted)}
+.day{display:grid;gap:10px}
+.day-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.day-h b{font:600 18px var(--f-display)}
+.day select{padding:6px 8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:14px}
+.strip{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.strip .thumb{flex:0 0 46px;width:46px;height:58px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.day.today{border-color:var(--gold)}
+nav.bar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+nav.bar .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);height:var(--nav-h)}
+nav.bar button{border:0;background:none;display:grid;place-items:center;align-content:center;gap:3px;font-size:11px;color:var(--muted);padding:0}
+nav.bar svg{width:22px;height:22px}
+nav.bar button[aria-current="page"]{color:var(--ink);font-weight:600}
+nav.bar button[aria-current="page"] svg{color:var(--gold)}
+nav.bar .add span.ring{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:var(--bg)}
+nav.bar .add[aria-current="page"] span.ring{background:var(--gold);color:var(--on-gold)}
+.sheet{position:fixed;inset:0;z-index:40;background:rgba(20,20,24,.45);display:grid;align-items:end}
+.sheet .panel{background:var(--surface);border-radius:20px 20px 0 0;max-height:92%;overflow:auto;padding-block:18px calc(20px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));width:100%;max-width:640px;margin:0 auto;display:grid;gap:14px}
+.sheet .hero{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:end}
+.sheet .hero .thumb{width:120px;aspect-ratio:3/4;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.sheet .hero > div{min-width:0}
+.banner{background:var(--gold-soft);border-radius:12px;padding:12px 14px;font-size:14px;display:grid;gap:8px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom,0px));z-index:50;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;max-width:calc(100% - 32px)}
+.empty{text-align:center;display:grid;gap:10px;justify-items:center;padding-block:24px}
+.keyrow{display:flex;gap:8px}
+.keyrow input{flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-family:var(--f-mono);font-size:13px}
+.nota-box{display:grid;gap:6px}
+.nota-in{display:flex;gap:6px;align-items:flex-start}
+.nota-in textarea{flex:1;min-width:0;padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font-size:14px;resize:vertical}
+.chips.mini .chip{padding:4px 10px;font-size:12.5px;color:var(--muted)}
+.set select{padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);width:100%}
+/* v9: tres propuestas, diario de gustos y tiempo */
+.pager{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pager .pdots{display:flex;gap:6px}
+.pager .pdots i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.pager .pdots i.on{background:var(--gold)}
+details.fb{border-top:1px dashed var(--line);padding-top:10px}
+details.fb summary{cursor:pointer;font-size:14px;color:var(--muted);list-style:none}
+details.fb summary::-webkit-details-marker{display:none}
+details.fb summary::before{content:"＋ "}
+details.fb[open] summary::before{content:"－ "}
+details.fb .chips{margin-top:8px}
+details.fb .chip{font-size:13px;padding:5px 11px}
+details.fb .lbl{display:block;font-size:12px;color:var(--muted);margin-top:10px}
+.tiempo{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;font-size:13.5px;color:var(--muted);min-height:20px}
+.diario{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.diario li{display:flex;gap:8px;align-items:flex-start;font-size:13.5px}
+.diario li span{flex:1;min-width:0}
+.ancla{font-size:13px;color:var(--gold);font-weight:600}
+</style>
+</head>
+<body>
+<header class="top wrap">
+  <div class="brand"><h1>Kekas Closet</h1>
+    <button class="gear" type="button" data-act="tab" data-v="ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div>
+  <svg class="band" viewBox="0 0 320 40" preserveAspectRatio="xMinYMid meet" aria-hidden="true">
+    <defs>
+      <symbol id="sp" viewBox="-10 -10 20 20"><path d="M0-10L2-2 10 0 2 2 0 10-2 2-10 0-2-2z"/></symbol>
+      <symbol id="st" viewBox="-10 -10 20 20"><path d="M0-10L2.5-3.4 9.5-3.1 4 1.3 5.9 8.1 0 4.2-5.9 8.1-4 1.3-9.5-3.1-2.5-3.4z"/></symbol>
+    </defs>
+    <path class="w-trail" d="M50 14 C 95 30, 140 6, 190 20 S 280 28, 318 16" stroke-width="1" stroke-dasharray="0.5 6" stroke-linecap="round"/>
+    <g class="w-dust">
+      <circle class="tw2" cx="54" cy="20" r="1"/><circle class="tw" cx="61" cy="10" r=".7" style="animation-delay:.4s"/><circle cx="70" cy="24" r="1.1"/>
+      <circle class="tw2" cx="84" cy="15" r=".6" style="animation-delay:.8s"/><circle cx="92" cy="30" r=".8"/><circle class="tw" cx="108" cy="9" r="1" style="animation-delay:1.1s"/>
+      <circle cx="117" cy="26" r=".6"/><circle class="tw2" cx="131" cy="33" r="1" style="animation-delay:.2s"/><circle cx="146" cy="12" r=".8"/>
+      <circle class="tw" cx="158" cy="27" r=".7" style="animation-delay:.6s"/><circle cx="171" cy="6" r="1"/><circle class="tw2" cx="186" cy="31" r=".7" style="animation-delay:1.4s"/>
+      <circle cx="199" cy="13" r=".9"/><circle class="tw" cx="213" cy="34" r=".6" style="animation-delay:.9s"/><circle cx="226" cy="8" r=".7"/>
+      <circle class="tw2" cx="240" cy="25" r="1" style="animation-delay:.3s"/><circle cx="257" cy="33" r=".6"/><circle class="tw" cx="268" cy="11" r=".8" style="animation-delay:1.2s"/>
+      <circle cx="283" cy="22" r=".7"/><circle class="tw2" cx="298" cy="9" r=".6" style="animation-delay:.7s"/><circle cx="310" cy="28" r=".8"/>
+    </g>
+    <g class="w-grey">
+      <circle cx="77" cy="13" r=".6"/><circle class="tw" cx="125" cy="18" r=".6" style="animation-delay:.5s"/><circle cx="178" cy="24" r=".6"/><circle class="tw" cx="248" cy="15" r=".6" style="animation-delay:1s"/><circle cx="292" cy="31" r=".6"/>
+    </g>
+    <g class="w-acc">
+      <use class="tw" href="#sp" x="58" y="12" width="10" height="10"/>
+      <use class="tw" href="#st" x="76" y="22" width="9" height="9" style="animation-delay:.5s"/>
+      <use class="tw" href="#sp" x="98" y="3" width="7" height="7" style="animation-delay:1s"/>
+      <use class="tw" href="#sp" x="112" y="23" width="12" height="12" style="animation-delay:.2s"/>
+      <use class="tw" href="#st" x="138" y="15" width="7" height="7" style="animation-delay:1.3s"/>
+      <use class="tw" href="#sp" x="162" y="9" width="10" height="10" style="animation-delay:.7s"/>
+      <use class="tw" href="#sp" x="191" y="25" width="8" height="8" style="animation-delay:.1s"/>
+      <use class="tw" href="#st" x="206" y="10" width="9" height="9" style="animation-delay:.9s"/>
+      <use class="tw" href="#sp" x="232" y="20" width="11" height="11" style="animation-delay:1.5s"/>
+      <use class="tw" href="#sp" x="260" y="5" width="7" height="7" style="animation-delay:.4s"/>
+      <use class="tw" href="#st" x="276" y="23" width="7" height="7" style="animation-delay:1.1s"/>
+      <use class="tw" href="#sp" x="302" y="13" width="8" height="8" style="animation-delay:.6s"/>
+    </g>
+    <g class="w-ink">
+      <use class="tw2" href="#sp" x="88" y="18" width="5" height="5" style="animation-delay:.3s"/>
+      <use class="tw2" href="#sp" x="150" y="29" width="5" height="5" style="animation-delay:1.2s"/>
+      <use class="tw2" href="#sp" x="220" y="28" width="5" height="5" style="animation-delay:.8s"/>
+      <use class="tw2" href="#sp" x="288" y="6" width="5" height="5" style="animation-delay:.1s"/>
+    </g>
+    <line class="w-stick" x1="6" y1="37" x2="29" y2="17" stroke-width="3" stroke-linecap="round"/>
+    <line class="w-grip" x1="6" y1="37" x2="12" y2="31.8" stroke-width="3" stroke-linecap="round"/>
+    <g class="w-ray" stroke-width="1.2" stroke-linecap="round" opacity=".8">
+      <line x1="34" y1="2" x2="34" y2="0"/><line x1="44" y1="6" x2="47" y2="4.5"/><line x1="24" y1="6" x2="21" y2="4.5"/><line x1="45" y1="17" x2="48" y2="18.5"/>
+    </g>
+    <use class="w-acc" href="#st" x="23" y="0" width="22" height="22"/>
+    <use class="w-core" href="#st" x="29" y="6" width="10" height="10"/>
+  </svg>
+</header>
+
+<main class="wrap">
+  <div class="banner" id="sinClave" hidden><span>Para pedir looks y etiquetar fotos, pega tu clave de Claude en Ajustes.</span><span><button class="btn sm gold" type="button" data-act="tab" data-v="ajustes">Ir a Ajustes</button></span></div>
+
+  <section data-view="hoy">
+    <div class="seg">
+      <button type="button" data-act="dia" data-v="hoy" id="b-hoy">Hoy</button>
+      <button type="button" data-act="dia" data-v="manana" id="b-manana">Mañana</button>
+    </div>
+    <div style="display:grid;gap:4px"><span class="eyebrow" id="hoyFecha"></span><h2>¿Qué me pongo?</h2></div>
+    <div class="chips" id="ocasChips"></div>
+    <div class="temp"><span class="muted">Temperatura</span>
+      <input id="tmin" type="number" inputmode="numeric" aria-label="Mínima"> <span>–</span>
+      <input id="tmax" type="number" inputmode="numeric" aria-label="Máxima"> <span>°C</span></div>
+    <div class="tiempo" id="tiempoInfo"></div>
+    <div class="nota-box">
+      <label for="notaHoy" class="eyebrow">Para la estilista</label>
+      <div class="nota-in"><textarea id="notaHoy" rows="2" maxlength="300" placeholder="¿Algo que no te apetezca? Ej.: hoy no quiero ir con vaqueros"></textarea><button type="button" class="btn ghost sm" data-act="notaBorrar" data-for="notaHoy" aria-label="Borrar nota">✕</button></div>
+      <div class="chips mini"><button type="button" class="chip" data-act="notaChip" data-for="notaHoy" data-v="Nada de tacón">Nada de tacón</button><button type="button" class="chip" data-act="notaChip" data-for="notaHoy" data-v="Sin falda">Sin falda</button><button type="button" class="chip" data-act="notaChip" data-for="notaHoy" data-v="Algo cómodo">Algo cómodo</button><button type="button" class="chip" data-act="notaChip" data-for="notaHoy" data-v="Sin animal print">Sin animal print</button><button type="button" class="chip" data-act="notaChip" data-for="notaHoy" data-v="Más arreglada">Más arreglada</button><button type="button" class="chip" data-act="notaChip" data-for="notaHoy" data-v="Sin negro">Sin negro</button></div>
+    </div>
+    <div id="look"></div>
+  </section>
+
+  <section data-view="armario" hidden>
+    <div class="row" style="justify-content:space-between"><h2>Mi armario</h2><span class="count" id="cuentaPrendas"></span></div>
+    <input class="search" id="buscar" type="search" placeholder="Buscar: leopardo, marino, blazer…" autocomplete="off">
+    <div class="chips scroll" id="catChips"></div>
+    <div id="grid"></div>
+  </section>
+
+  <section data-view="anadir" hidden>
+    <h2>Añadir prendas</h2>
+    <label class="drop" for="fotos"><b>Haz fotos o elige de la galería</b>
+      <span class="muted">Puedes subir varias a la vez. Claude propone las etiquetas y tú las corriges.</span>
+      <span class="btn gold sm" style="margin-top:6px">Elegir fotos</span></label>
+    <input id="fotos" type="file" accept="image/*" multiple hidden>
+    <div class="row"><button class="btn ghost sm" type="button" data-act="sinfoto">+ Añadir sin foto</button>
+      <button class="btn primary sm" type="button" data-act="guardarTodas" id="guardarTodas" hidden>Guardar todas</button></div>
+    <p class="muted" id="avisoIA" hidden>Sin clave de Claude no hay etiquetado automático. Rellena las etiquetas a mano o añade tu clave en Ajustes.</p>
+    <div id="drafts" style="display:grid;gap:12px"></div>
+  </section>
+
+  <section data-view="favs" hidden>
+    <h2>Looks favoritos</h2>
+    <p class="muted" style="font-size:14px">La estilista se inspira en estos looks para entender tu gusto.</p>
+    <div id="favList" style="display:grid;gap:12px"></div>
+  </section>
+
+  <section data-view="semana" hidden>
+    <div style="display:grid;gap:4px"><span class="eyebrow">Próximos 7 días</span><h2>Mi semana</h2></div>
+    <p class="muted">Usa la previsión de cada día (o la temperatura de “¿Qué me pongo?”). Elige la ocasión de cada día y deja que la estilista reparta las prendas sin repetir.</p>
+    <div class="nota-box">
+      <label for="notaSem" class="eyebrow">Para la estilista</label>
+      <div class="nota-in"><textarea id="notaSem" rows="2" maxlength="300" placeholder="Ej.: el jueves nada de tacón, esta semana me apetece llevar el blazer rosa"></textarea><button type="button" class="btn ghost sm" data-act="notaBorrar" data-for="notaSem" aria-label="Borrar nota">✕</button></div>
+      <div class="chips mini"><button type="button" class="chip" data-act="notaChip" data-for="notaSem" data-v="Nada de tacón">Nada de tacón</button><button type="button" class="chip" data-act="notaChip" data-for="notaSem" data-v="Sin falda">Sin falda</button><button type="button" class="chip" data-act="notaChip" data-for="notaSem" data-v="Algo cómodo">Algo cómodo</button><button type="button" class="chip" data-act="notaChip" data-for="notaSem" data-v="Sin animal print">Sin animal print</button><button type="button" class="chip" data-act="notaChip" data-for="notaSem" data-v="Más arreglada">Más arreglada</button><button type="button" class="chip" data-act="notaChip" data-for="notaSem" data-v="Sin negro">Sin negro</button></div>
+    </div>
+    <div class="row"><button class="btn gold" type="button" data-act="planSemana" id="btnSemana">Planificar los días libres</button></div>
+    <div id="semErr"></div>
+    <div id="dias" style="display:grid;gap:12px"></div>
+  </section>
+
+  <section data-view="ajustes" class="set" hidden>
+    <h2>Ajustes</h2>
+    <div class="card">
+      <h3 class="sub">Clave de Claude</h3>
+      <p class="muted" style="font-size:14px">Se guarda solo en este móvil. Empieza por <code>sk-ant-</code>. La creas en platform.claude.com, en “API keys”.</p>
+      <div class="keyrow"><input id="clave" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" aria-label="Clave de Claude">
+        <button class="btn sm" type="button" data-act="verClave" id="btnVer">Ver</button></div>
+      <div class="row"><button class="btn primary sm" type="button" data-act="guardarClave">Guardar clave</button>
+        <button class="btn sm" type="button" data-act="probar" id="btnProbar">Probar conexión</button>
+        <button class="btn ghost sm danger" type="button" data-act="borrarClave">Borrar clave</button></div>
+      <p id="estadoClave" style="font-size:14px"></p>
+      <label style="display:grid;gap:4px;font-size:13px" class="muted">Modelo
+        <select id="modelo">
+          <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (recomendado)</option>
+          <option value="claude-haiku-5-5">Claude Haiku 5.5 (más barato y rápido)</option>
+        </select></label>
+    </div>
+    <div class="card">
+      <h3 class="sub">Tu estilista</h3>
+      <p class="muted" style="font-size:14px">Una estilista profesional, elegante y sencilla, que piensa bien cada look. Cuéntale aquí tu estilo y lo que prefieres evitar.</p>
+      <div class="fields"><label class="full">Mi estilo<textarea id="estilo" rows="4" placeholder="Ej.: En el trabajo prefiero no llevar minifalda. No me gusta mezclar negro y marino."></textarea></label></div>
+      <div class="row"><button class="btn primary sm" type="button" data-act="guardarEstilo">Guardar estilo</button><button class="btn ghost sm" type="button" data-act="estiloDef">Volver al texto inicial</button></div>
+      <label class="row" style="gap:8px;font-size:14px"><input type="checkbox" id="pensar"> Pensar más cada look</label>
+      <p class="muted" style="font-size:13px">Claude valora varias combinaciones antes de proponerte una. Looks mejor pensados, pero cada uno tarda unos segundos más y cuesta aproximadamente el doble.</p>
+    </div>
+    <div class="card">
+      <h3 class="sub">Lo que la estilista sabe de ti</h3>
+      <p class="muted" style="font-size:14px">Aprende de los looks que dejas preparados y de lo que le dices al pedir otros. Borra lo que ya no sea verdad.</p>
+      <ul class="diario" id="diario"></ul>
+      <div class="row"><button class="btn ghost sm danger" type="button" data-act="diarioBorrar" id="btnDiarioBorrar">Borrar todo</button></div>
+    </div>
+    <div class="card">
+      <h3 class="sub">Acierto de la estilista</h3>
+      <div id="acierto" style="display:grid;gap:6px"></div>
+      <div class="row"><button class="btn ghost sm" type="button" data-act="aciertoReset" id="btnAciertoReset">Empezar a contar de nuevo</button></div>
+    </div>
+    <div class="card">
+      <h3 class="sub">Tiempo automático</h3>
+      <p class="muted" style="font-size:14px">Con tu zona aproximada, la app rellena la temperatura y avisa a la estilista si va a llover. La previsión es de Open-Meteo: gratis y sin clave.</p>
+      <p id="geoEstado" style="font-size:14px"></p>
+      <div class="row"><button class="btn sm primary" type="button" data-act="geo" id="btnGeo">Activar</button><button class="btn ghost sm danger" type="button" data-act="geoQuitar" id="btnGeoQuitar">Desactivar</button></div>
+    </div>
+    <div class="card">
+      <h3 class="sub">Gasto de Claude este mes</h3>
+      <p id="gasto" style="font:500 22px var(--f-mono);font-variant-numeric:tabular-nums"></p>
+      <p class="muted" style="font-size:13px">Estimado en este móvil a partir de los tokens de cada petición. El dato exacto está en platform.claude.com, en Usage.</p>
+    </div>
+    <div class="card">
+      <h3 class="sub">Copia de seguridad</h3>
+      <p class="muted" style="font-size:14px">Tus prendas, fotos, planes, favoritos y lo que la estilista sabe de ti están en este móvil. Guarda una copia de vez en cuando (la clave no se incluye).</p>
+      <div class="row"><button class="btn sm" type="button" data-act="exportar">Descargar copia</button>
+        <label class="btn sm" for="importar">Restaurar copia</label><input id="importar" type="file" accept="application/json,.json" hidden></div>
+      <p class="muted" id="espacio" style="font-size:13px"></p>
+    </div>
+    <div class="card" id="catalogoCard">
+      <h3 class="sub">Mi catálogo inicial</h3>
+      <p class="muted" style="font-size:14px">Carga tus 45 prendas ya descritas (sin foto). Luego puedes ponerles foto desde su ficha.</p>
+      <div class="row"><button class="btn sm gold" type="button" data-act="cargarCatalogo">Cargar 45 prendas</button></div>
+    </div>
+    <div class="card" id="instalarCard" hidden>
+      <h3 class="sub">Instalar en el móvil</h3>
+      <p class="muted" style="font-size:14px">Añade Kekas Closet a tu pantalla de inicio para abrirla como una app.</p>
+      <div class="row"><button class="btn sm primary" type="button" data-act="instalar">Instalar app</button></div>
+    </div>
+  </section>
+</main>
+
+<nav class="bar" aria-label="Secciones"><div class="in">
+  <button type="button" data-act="tab" data-v="hoy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L14.5 9.5"/><path d="M17 2.5l1.3 2.9 3.2.3-2.4 2.1.7 3.1L17 9.3l-2.8 1.6.7-3.1-2.4-2.1 3.2-.3z"/><path d="M6 6v2M5 7h2M20 15v2M19 16h2"/></svg>Qué me pongo</button>
+  <button type="button" data-act="tab" data-v="armario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M12 3v18M10 11v2M14 11v2"/></svg>Armario</button>
+  <button type="button" class="add" data-act="tab" data-v="anadir"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 6v12M6 12h12"/></svg></span>Añadir</button>
+  <button type="button" data-act="tab" data-v="favs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Favoritos</button>
+  <button type="button" data-act="tab" data-v="semana"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Semana</button>
+</div></nav>
+
+<div class="sheet" id="sheet" hidden><div class="panel" id="sheetPanel"></div></div>
+<input id="fotoFicha" type="file" accept="image/*" hidden>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(() => {
+/* ---------- Catálogo inicial ---------- */
+// [n, nombre, categoría, marca, color, tono, estilo, estación, detalles]
+const CATALOGO=[
+[1,"Blazer rosa palo","abrigo","ONLY","rosa palo","#d9a7a3","smart casual","entretiempo","Jaspeado, solapa chal, manga 3/4 fruncida"],
+[2,"Blazer crudo","abrigo","Pieces","crudo","#ece3d0","smart casual","entretiempo","Sin solapa, cuello redondo, corto, puños doblados"],
+[3,"Chaqueta verde petróleo","abrigo","","verde petróleo","#1f5c5c","casual chic","entretiempo","Efecto ante, corte cascada asimétrico, manga larga, cordón a juego para llevarla atada"],
+[5,"Blazer negro","abrigo","Pieces","negro","#1b1b1d","formal","entretiempo","Solapa chal, manga 3/4 fruncida. Formal o smart"],
+[21,"Cazadora de cuero negra","abrigo","","negro","#222222","casual chic","invierno","Cuello de pelo sintético, forro acolchado, bolsillos con solapa"],
+[22,"Plumífero ligero de corazones","abrigo","Uniqlo Ultra Light","granate, marino y crudo","#7a2232","casual","entretiempo","Estampado de corazones granate, marino y crudo"],
+[23,"Abrigo acolchado largo negro","abrigo","","negro","#161616","casual","invierno","Largo, acolchado, con capucha"],
+[4,"Camiseta blanca de estrellas","arriba","","blanco con leopardo dorado","#f7f5f0","casual","todo el año","Tres estrellas de leopardo dorado"],
+[10,"Jersey de rayas","arriba","Cortefiel","crudo, beige y camel","#c9a679","casual chic","invierno","Rayas crudo, beige y camel con hilo dorado"],
+[11,"Camisa floral de gasa","arriba","","crudo con flores rosa, azul y amarillo","#efe6d4","casual chic","entretiempo","Gasa, cuello bebé, hilo dorado"],
+[12,"Blusa marino con volantes","arriba","","azul marino","#1f2a4d","smart casual","entretiempo","Estampado azul claro, semitransparente, puños elásticos"],
+[13,"Camisa satinada de grullas","arriba","Garcia Jeans","azul marino","#18233f","fiesta","todo el año","Grullas y flores, rayas lúrex. Talla S. Para fiesta o noche"],
+[14,"Top gris con lazo","arriba","Zara","gris pizarra","#5d6670","smart casual","todo el año","Punto acanalado, cuello cuadrado con lazo, manga corta abullonada"],
+[15,"Top negro con cristales","arriba","Zara","negro","#141414","fiesta","todo el año","Corto, cuello redondo en canalé, cristales"],
+[16,"Camiseta marino de strass","arriba","Zara","azul marino","#1c2747","fiesta","verano","Sin mangas, malla con strass plateados"],
+[17,"Camiseta blanca de rosas","arriba","","blanco","#f6f4ef","casual chic","todo el año","Tres rosas de tela en el hombro"],
+[18,"Camiseta “motivos para bailar!”","arriba","","crudo","#ebe2cf","casual","entretiempo","Cuello barco con botones, manga 3/4. Talla S"],
+[19,"Camiseta beige cuello pico","arriba","","beige","#d6c4a5","casual","todo el año","Logo metálico, cordón ajustable en el bajo"],
+[6,"Minifalda vaquera negra","abajo","","negro","#1e1e1e","casual chic","todo el año","Con strass plateados"],
+[7,"Pantalón negro de vestir","abajo","","negro","#181818","formal","todo el año","Tiro alto, recto, tobillero"],
+[8,"Vaquero azul oscuro","abajo","Levi's 724","azul oscuro","#26385e","casual","todo el año","Tiro alto, recto. Talla 27"],
+[9,"Vaquero azul claro","abajo","","azul claro","#8eaacb","casual","todo el año","Pitillo desgastado, tobillero"],
+[24,"Falda lápiz efecto piel","abajo","","negro","#121212","smart casual","invierno","Midi, abertura trasera"],
+[25,"Minifalda de leopardo","abajo","","leopardo rojo y negro","leopardo","casual chic","invierno","Tipo borreguito, leopardo rojo y negro"],
+[26,"Vestido negro sin mangas","abajo","","negro","#151515","formal","todo el año","Vestido. Cuello alto, liso, ligeramente evasé"],
+[27,"Zapatillas de leopardo","zapatos","Adidas","leopardo","leopardo","casual","todo el año","Cordones naranjas"],
+[28,"Botines marino de estrellas","zapatos","","azul marino","#22305a","casual chic","entretiempo","Ante, estrellas doradas bordadas"],
+[29,"Bailarinas de lunares","zapatos","Zara","crudo con lunares negros","#ece4d2","casual chic","verano","Con lacito"],
+[38,"Botines de terciopelo gris","zapatos","","gris","#8a8a92","fiesta","invierno","Con cristales, tacón ancho medio"],
+[39,"Botines negros de piel","zapatos","Callaghan","negro","#1c1a19","smart casual","invierno","Tacón ancho bajo, anillas doradas con lazo marrón"],
+[40,"Mary Jane de ante gris","zapatos","","gris marengo","#4a4c52","smart casual","entretiempo","Tacón ancho efecto espejo plateado"],
+[41,"Botines de ante granate","zapatos","","granate","#6e1f2a","smart casual","entretiempo","Punta fina, tacón kitten"],
+[30,"Mochila negra de piel","bolso","Coccinelle","negro","#1a1a1a","smart casual","todo el año","Piel"],
+[31,"Bolso acolchado con cadena","bolso","","negro","#171717","fiesta","todo el año","Acolchado, cadena dorada"],
+[32,"Bolso de mano de abalorios","bolso","","morado, crudo, negro, dorado y plateado","#5b3a6e","fiesta","todo el año","Abalorios"],
+[33,"Fular de seda cobre","accesorio","","marrón, cobre y azul violáceo","#9a5a32","casual chic","entretiempo","Seda en bloques de color, con flecos"],
+[34,"Pañuelo de cachemir","accesorio","","multicolor, borde turquesa","#2f9a9a","casual chic","entretiempo","Cuadrado, multicolor con borde turquesa"],
+[35,"Fular gris de seda","accesorio","","gris claro","#c9cbcf","smart casual","entretiempo","Seda con flecos"],
+[20,"Cinturón de leopardo","accesorio","","leopardo","leopardo","casual chic","todo el año","Hebilla dorada ovalada"],
+[36,"Cinturón ancho camel","accesorio","","camel","#b5834e","smart casual","todo el año","Elástico, hebilla dorada de alas"],
+[37,"Cinturón de cebra","accesorio","","cebra","cebra","casual chic","todo el año","Hebilla plateada"],
+[42,"Colgante de gato de tres ojos","joya","","dorado","dorado","casual chic","todo el año","Dorado, gotas de nácar y cristal"],
+[43,"Collar de gato negro","joya","","negro","#1a1a1a","casual","todo el año","Cordón negro con gato negro y cristal"],
+[44,"Brazalete dorado","joya","","dorado","dorado","smart casual","todo el año","Ancho, latón envejecido"],
+[45,"Pendientes de gatos negros","joya","","negro con ojos amarillos","#1a1a1a","casual","todo el año","Gatos negros con ojos amarillos"]
+];
+
+const CATS=[["abrigo","Chaquetas y abrigos"],["arriba","Parte de arriba"],["abajo","Abajo y vestidos"],["zapatos","Zapatos"],["bolso","Bolsos"],["accesorio","Pañuelos y cinturones"],["joya","Joyas"]];
+const CATN=Object.fromEntries(CATS), CATORD=Object.fromEntries(CATS.map((c,i)=>[c[0],i]));
+const OCAS=["Trabajo","Reunión","Casual","Cena o fiesta","Fin de semana","Viaje"];
+const ESTILOS=["casual","casual chic","smart casual","formal","fiesta","deportivo"];
+const ESTACIONES=["todo el año","entretiempo","invierno","verano"];
+const DIAS=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"], DIASL=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+const MESES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ls={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}},del(k){try{localStorage.removeItem(k)}catch{}}};
+const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const parse=s=>{const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const largo=s=>{const d=parse(s);return `${DIASL[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`};
+
+/* ---------- Almacenamiento en el móvil (IndexedDB) ---------- */
+const STORES=["prendas","planes","favoritos"];
+const idb=new Promise((res,rej)=>{
+  const r=indexedDB.open("kekas-closet",1);
+  r.onupgradeneeded=()=>STORES.forEach(s=>r.result.objectStoreNames.contains(s)||r.result.createObjectStore(s,{keyPath:"id"}));
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+});
+const tx=async(store,mode,fn)=>{const db=await idb;return new Promise((res,rej)=>{const t=db.transaction(store,mode);const out=fn(t.objectStore(store));t.oncomplete=()=>res(out&&out.result);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})};
+const DB={
+  all:s=>tx(s,"readonly",st=>st.getAll()),
+  put:(s,o)=>tx(s,"readwrite",st=>st.put(o)),
+  putMany:(s,arr)=>tx(s,"readwrite",st=>{arr.forEach(o=>st.put(o))}),
+  del:(s,id)=>tx(s,"readwrite",st=>st.delete(id))
+};
+const MAP={prendas:null,planes:null,favoritos:null};
+async function guardar(store,obj){ await DB.put(store,obj); MAP[store].set(obj.id,obj); renderAll(); }
+async function borrar(store,id){ await DB.del(store,id); MAP[store].delete(id); renderAll(); }
+
+const prevGuardada=(()=>{const p=ls.get("kc.prev",null);return p&&p.dias&&typeof p.dias==="object"?p:{t:0,dias:{}}})();
+const S={
+  key:ls.get("kc.key",""), modelo:ls.get("kc.modelo","claude-sonnet-5-5"), loaded:false,
+  prendas:new Map(), planes:new Map(), favs:new Map(),
+  tab:"hoy", dia:new Date().getHours()>=17?"manana":"hoy",
+  ocasion:ls.get("kc.ocasion","Trabajo"), tmin:ls.get("kc.tmin",9), tmax:ls.get("kc.tmax",19),
+  prev:prevGuardada, fb:{razones:[],prendas:[]}, fbOpen:false,
+  cat:"todo", q:"", propuesta:{}, err:{}, busy:null, semOcas:{}, semBusy:null, drafts:[], ficha:null, instalar:null
+};
+MAP.prendas=S.prendas; MAP.planes=S.planes; MAP.favoritos=S.favs;
+const hayClave=()=>!!S.key;
+
+function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2800)}
+
+/* ---------- Llamada a Claude ---------- */
+class ClaudeError extends Error{constructor(code,msg){super(msg);this.code=code}}
+async function aBase64(blob){const b=new Uint8Array(await blob.arrayBuffer());let s="";for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s)}
+async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=false}={}){
+  if(!S.key) throw new ClaudeError("sin_clave");
+  const content=[];
+  if(imagen) content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:await aBase64(imagen)}});
+  content.push({type:"text",text:texto});
+  let r;
+  try{
+    r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",signal,headers:{
+      "content-type":"application/json","x-api-key":S.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify(Object.assign({model:S.modelo,max_tokens:maxTokens,messages:[{role:"user",content}]},
+        system?{system}:{},
+        pensar?{thinking:{type:"adaptive"},output_config:{effort:"medium"},max_tokens:maxTokens+6000}:{}))});
+  }catch(e){ if(e.name==="AbortError") throw new ClaudeError("cancelado"); throw new ClaudeError("red"); }
+  let data=null; try{data=await r.json()}catch{}
+  if(!r.ok){
+    const m=(data&&data.error&&data.error.message)||"";
+    if(r.status===401) throw new ClaudeError("clave");
+    if(r.status===403) throw new ClaudeError("permiso");
+    if(r.status===429) throw new ClaudeError("limite");
+    if(pensar&&r.status===400&&/thinking|effort|output_config/i.test(m)){ ls.set("kc.sinPensar",S.modelo); return pedirClaude(texto,{imagen,signal,maxTokens,system,pensar:false}); }
+    if(r.status===529||r.status>=500) throw new ClaudeError("saturado");
+    if(/credit|balance|billing/i.test(m)) throw new ClaudeError("saldo");
+    if(/model/i.test(m)) throw new ClaudeError("modelo",m);
+    throw new ClaudeError("otro",m);
+  }
+  anotarUso(data.usage);
+  return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+}
+/* Gasto estimado: tokens reales que devuelve la API × precio del modelo ($ por millón) */
+const PRECIO={"claude-sonnet-5-5":[2,10],"claude-haiku-5-5":[0.1,0.5]};
+const mesActual=()=>ymd(new Date()).slice(0,7);
+function anotarUso(u){
+  if(!u) return;
+  const p=PRECIO[S.modelo]||[2,10];
+  const usd=((u.input_tokens||0)+(u.cache_creation_input_tokens||0))*p[0]/1e6+(u.cache_read_input_tokens||0)*p[0]*.1/1e6+(u.output_tokens||0)*p[1]/1e6;
+  const g=ls.get("kc.gasto",{}), m=mesActual(); g[m]=g[m]||{usd:0,n:0}; g[m].usd+=usd; g[m].n++; ls.set("kc.gasto",g);
+}
+function sacarJSON(t){
+  try{return JSON.parse(t)}catch{}
+  const f=t.match(/```(?:json)?\s*([\s\S]*?)```/); if(f){try{return JSON.parse(f[1])}catch{}}
+  const a=Math.min(...["{","["].map(c=>{const i=t.indexOf(c);return i<0?1e9:i})), b=Math.max(t.lastIndexOf("}"),t.lastIndexOf("]"));
+  if(a<b){try{return JSON.parse(t.slice(a,b+1))}catch{}}
+  throw new ClaudeError("json");
+}
+const pedirJSON=async(texto,op)=>sacarJSON(await pedirClaude(texto+"\n\nResponde únicamente con el JSON, sin texto antes ni después.",op));
+function errMsg(e){
+  switch(e&&e.code){
+    case "cancelado": return "";
+    case "sin_clave": return "Falta tu clave de Claude. Pégala en Ajustes.";
+    case "clave": return "La clave no es válida. Revísala en Ajustes.";
+    case "permiso": return "Esta clave no tiene permiso para usar ese modelo.";
+    case "saldo": return "Tu cuenta de Claude Platform no tiene saldo. Añade crédito en Billing.";
+    case "limite": return "Has hecho muchas peticiones seguidas. Espera un minuto y vuelve a probar.";
+    case "saturado": return "Claude está saturado ahora mismo. Prueba en un momento.";
+    case "modelo": return "El modelo elegido no está disponible. Cambia de modelo en Ajustes.";
+    case "json": return "La respuesta llegó incompleta. Prueba otra vez.";
+    case "red": return "Sin conexión con Claude. Revisa tu internet.";
+    default: return "Algo ha fallado al hablar con Claude."+(e&&e.message?" ("+e.message.slice(0,120)+")":"");
+  }
+}
+
+/* ---------- Visual de cada prenda ---------- */
+const ICON={
+  abrigo:'<path d="M9 3l3 3 3-3 5 3-2 5-2-1v11H8V10l-2 1-2-5z"/>',
+  arriba:'<path d="M8 3l4 2 4-2 5 4-3 3-2-1v12H8V9L6 10 3 7z"/>',
+  abajo:'<path d="M7 3h10l1 18h-4l-2-11-2 11H6z"/>',
+  zapatos:'<path d="M3 15c0-3 1-6 3-6l3 4c3 1 8 1 10 2s2 4 0 4H4c-1 0-1-2-1-4z"/>',
+  bolso:'<path d="M5 9h14l-1 11H6z"/><path d="M9 9V7a3 3 0 0 1 6 0v2"/>',
+  accesorio:'<rect x="2" y="9" width="20" height="6" rx="2"/><rect x="9" y="8" width="6" height="8" rx="1"/>',
+  joya:'<circle cx="12" cy="14" r="6"/><path d="M9.5 5h5l-2.5 3z"/>'
+};
+function swatch(t){
+  const v=String(t||"").toLowerCase();
+  if(v==="leopardo") return 'class="sw leo"';
+  if(v==="cebra") return 'class="sw" style="background:repeating-linear-gradient(115deg,#f2efe8 0 9px,#1a1a1a 9px 15px)"';
+  if(v==="dorado") return 'class="sw" style="background:linear-gradient(135deg,#8a6420,#e6c46e 45%,#a87a2a)"';
+  return `class="sw" style="background:${/^#[0-9a-f]{3,8}$/.test(v)?v:"#9a978f"}"`;
+}
+function inkFor(t){
+  const v=String(t||"").toLowerCase(); if(!/^#[0-9a-f]{6}$/.test(v)) return "#1a1a1a";
+  const n=parseInt(v.slice(1),16); return ((n>>16)*299+(n>>8&255)*587+(n&255)*114)/1000>140?"#1a1a1a":"#f5f2ea";
+}
+function visual(p){
+  if(p.foto) return `<img src="${esc(p.foto)}" alt="">`;
+  return `<div ${swatch(p.tono)}><svg viewBox="0 0 24 24" fill="none" stroke="${inkFor(p.tono)}" stroke-width="1.5" stroke-linejoin="round">${ICON[p.categoria]||ICON.arriba}</svg></div>`;
+}
+const ordenadas=()=>[...S.prendas.values()].sort((a,b)=>(a.n||0)-(b.n||0));
+const porLook=ids=>ids.map(id=>S.prendas.get(id)).filter(Boolean).sort((a,b)=>(CATORD[a.categoria]??9)-(CATORD[b.categoria]??9));
+const nombres=ids=>porLook(ids||[]).map(p=>p.nombre).join(" + ");
+const nombreDe=id=>(S.prendas.get(id)||{}).nombre||id;
+
+/* ---------- Tiempo automático (Open-Meteo: gratis y sin clave) ---------- */
+function tempDe(f){
+  const m=ls.get("kc.tman",{})[f], p=S.prev.dias[f];
+  return {min:m?m.min:p?p.min:S.tmin, max:m?m.max:p?p.max:S.tmax, lluvia:p&&p.lluvia!=null?p.lluvia:null, mm:p?p.mm:null, manual:!!m, prev:!!p};
+}
+function fijarTemp(f,min,max){const t=ls.get("kc.tman",{}),hoy=ymd(new Date());Object.keys(t).forEach(k=>{if(k<hoy)delete t[k]});t[f]={min,max};ls.set("kc.tman",t)}
+function quitarTempManual(f){const t=ls.get("kc.tman",{});delete t[f];ls.set("kc.tman",t)}
+async function actualizarTiempo(forzar){
+  const g=ls.get("kc.geo",null); if(!g) return;
+  if(!forzar&&Date.now()-(S.prev.t||0)<3*3600e3) return;
+  try{
+    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${g.lat}&longitude=${g.lon}&daily=temperature_2m_min,temperature_2m_max,precipitation_probability_max,precipitation_sum&timezone=auto&forecast_days=8`);
+    if(!r.ok) throw 0;
+    const d=(await r.json()).daily, dias={}, v=(k,i)=>d[k]&&d[k][i]!=null?d[k][i]:null;
+    d.time.forEach((f,i)=>{ const mn=v("temperature_2m_min",i), mx=v("temperature_2m_max",i); if(mn==null||mx==null) return;
+      dias[f]={min:Math.round(mn),max:Math.round(mx),lluvia:v("precipitation_probability_max",i),mm:v("precipitation_sum",i)}; });
+    S.prev={t:Date.now(),dias}; ls.set("kc.prev",S.prev); renderAll();
+  }catch{}
+}
+function activarGeo(){
+  if(!navigator.geolocation){toast("Este móvil no comparte la ubicación con la app.");return}
+  toast("Buscando tu zona…");
+  navigator.geolocation.getCurrentPosition(async p=>{
+    ls.set("kc.geo",{lat:+p.coords.latitude.toFixed(2),lon:+p.coords.longitude.toFixed(2)}); // zona aproximada (~1 km)
+    await actualizarTiempo(true);
+    toast(S.prev.t?"Tiempo automático activado":"Zona guardada, pero ahora no llega la previsión. Prueba más tarde.");
+    renderAll();
+  },()=>toast("No he podido saber tu zona. Permite la ubicación a Chrome y vuelve a probar."),{timeout:20000,maximumAge:864e5,enableHighAccuracy:false});
+}
+function tiempoTxt(t){
+  const s=`Temperatura: ${t.min} a ${t.max} °C.`;
+  if(t.lluvia==null) return s;
+  if(t.lluvia>=50) return s+` Lluvia: ${t.lluvia} % de probabilidad${t.mm?`, unos ${Math.round(t.mm)} mm`:""}. Elige calzado y prendas que aguanten el agua: nada de ante, terciopelo, bailarinas ni tejidos delicados.`;
+  if(t.lluvia>=25) return s+` Posible lluvia (${t.lluvia} %): mejor un calzado que aguante algo de agua.`;
+  return s+" Sin lluvia prevista.";
+}
+function tiempoInfo(f,t){
+  if(!ls.get("kc.geo",null)) return `<button class="btn ghost sm" type="button" data-act="geo" style="padding-inline:0">📍 Previsión y lluvia automáticas</button>`;
+  if(!t.prev) return `<span>${S.prev.t?"Sin previsión para este día":"Buscando la previsión…"}</span>`;
+  const p=S.prev.dias[f];
+  const ll=t.lluvia==null?"":t.lluvia>=50?`☂ ${t.lluvia} % de lluvia`:t.lluvia>=25?`☂ Posible lluvia (${t.lluvia} %)`:"Sin lluvia";
+  return `${ll?`<span>${ll}</span>`:""}${t.manual?`<span>· temperatura a mano</span><button class="btn ghost sm" type="button" data-act="tempPrev">Usar previsión (${p.min}–${p.max} °)</button>`:`<span>· previsión del día</span>`}`;
+}
+const tiempoCorto=f=>{const t=tempDe(f);return ` <span class="muted" style="font-size:12.5px">· ${t.min}–${t.max}°${t.lluvia!=null&&t.lluvia>=25?` ☂ ${t.lluvia} %`:""}</span>`};
+const sinLluviaDelicado=p=>!/\b(ante|terciopelo|bailarinas?|raso|lona)\b/i.test(p.nombre+" "+(p.descripcion||""));
+
+/* ---------- Diario de gustos y favoritos como ejemplos ---------- */
+function anotarDiario(t,txt){ const d=ls.get("kc.diario",[]); d.unshift({t,txt:String(txt).slice(0,220),f:ymd(new Date())}); ls.set("kc.diario",d.slice(0,14)); }
+function diarioTxt(){
+  const d=ls.get("kc.diario",[]).slice(0,10);
+  return d.length?`Lo que has aprendido de ella en looks anteriores (lo más reciente primero):\n${d.map(x=>`- ${x.t==="si"?"Eligió":"No le convenció"} ${x.txt}`).join("\n")}`:"";
+}
+function favTxt(ocas){
+  const fs=[...S.favs.values()].filter(l=>(l.piezas||[]).some(id=>S.prendas.has(id)))
+    .sort((a,b)=>(ocas.includes(b.ocasion)-ocas.includes(a.ocasion))||String(b.creado).localeCompare(String(a.creado))).slice(0,4);
+  return fs.length?`Looks que ha guardado como favoritos (reflejan su gusto; inspírate en ellos, no los copies):\n${fs.map(l=>`- «${l.titulo}»${l.ocasion?` (${l.ocasion})`:""}: ${nombres(l.piezas)}`).join("\n")}`:"";
+}
+
+/* ---------- Pestañas ---------- */
+function setTab(t){
+  S.tab=t;
+  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==t);
+  document.querySelectorAll("nav.bar button, .gear").forEach(b=>{if(b.dataset.v===t)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
+  window.scrollTo(0,0); renderAll();
+}
+function renderAll(){
+  $("#sinClave").hidden=hayClave()||S.tab==="ajustes";
+  if(S.tab==="hoy") renderHoy();
+  if(S.tab==="armario") renderArmario();
+  if(S.tab==="favs") renderFavs();
+  if(S.tab==="semana") renderSemana();
+  if(S.tab==="ajustes") renderAjustes();
+}
+
+/* ---------- ¿Qué me pongo? ---------- */
+const fechaSel=()=>ymd(addDays(new Date(),S.dia==="manana"?1:0));
+const propActual=f=>{const p=S.propuesta[f];return p?p.opciones[p.i]:null};
+function renderHoy(){
+  $("#b-hoy").setAttribute("aria-pressed",S.dia==="hoy");
+  $("#b-manana").setAttribute("aria-pressed",S.dia==="manana");
+  $("#hoyFecha").textContent=largo(fechaSel());
+  $("#ocasChips").innerHTML=OCAS.map(o=>`<button type="button" class="chip" data-act="ocasion" data-v="${esc(o)}" aria-pressed="${o===S.ocasion}">${esc(o)}</button>`).join("");
+  if(document.activeElement!==$("#notaHoy")) $("#notaHoy").value=ls.get("kc.notaHoy","");
+  const t=tempDe(fechaSel());
+  if(document.activeElement!==$("#tmin")) $("#tmin").value=t.min;
+  if(document.activeElement!==$("#tmax")) $("#tmax").value=t.max;
+  $("#tiempoInfo").innerHTML=tiempoInfo(fechaSel(),t);
+  renderLook();
+}
+function lookCard(l,{estado,acciones,extra=""}){
+  const ps=porLook(l.piezas||[]);
+  return `<article class="card">
+    <div class="look-head">${estado}<h3>${esc(l.titulo||"Tu look")}</h3>${l.ocasion?`<span class="muted" style="font-size:13px">${esc(l.ocasion)}</span>`:""}</div>
+    <ul class="pieces">${ps.map(p=>`<li><button type="button" class="piece" data-act="ficha" data-id="${esc(p.id)}"><span class="thumb">${visual(p)}</span><div><b>${esc(p.nombre)}</b><span>Nº ${p.n} · ${esc(CATN[p.categoria]||"")}</span></div></button></li>`).join("")}</ul>
+    ${l.nota?`<p class="nota">${esc(l.nota)}</p>`:""}
+    ${l.vistas?`<span class="count">Elegido entre ${esc(l.vistas)} prendas</span>`:""}
+    ${extra}<div class="row">${acciones}</div></article>`;
+}
+const RAZONES=["El color","Muy arreglado","Muy informal","Poco abrigo","Demasiado abrigo","Poco cómodo","Lo llevo demasiado"];
+const pager=pr=>`<div class="pager"><button class="btn sm" type="button" data-act="opc" data-v="-1" aria-label="Look anterior">‹ Anterior</button><span class="pdots">${pr.opciones.map((_,j)=>`<i class="${j===pr.i?"on":""}"></i>`).join("")}</span><button class="btn sm" type="button" data-act="opc" data-v="1" aria-label="Look siguiente">Siguiente ›</button></div>`;
+const fbBox=l=>`<details class="fb" ${S.fbOpen?"open":""}><summary>¿Qué no te convence? Dímelo y aprendo</summary>
+  <div class="chips">${RAZONES.map(x=>`<button type="button" class="chip" data-act="fbRazon" data-v="${esc(x)}" aria-pressed="${S.fb.razones.includes(x)}">${esc(x)}</button>`).join("")}</div>
+  <span class="lbl">No me apetece:</span>
+  <div class="chips">${porLook(l.piezas||[]).map(p=>`<button type="button" class="chip" data-act="fbPieza" data-id="${esc(p.id)}" aria-pressed="${S.fb.prendas.includes(p.id)}">${esc(p.nombre)}</button>`).join("")}</div>
+  <p class="hint" style="margin-top:8px">Luego pulsa “Otros 3 looks”.</p></details>`;
+function renderLook(){
+  const f=fechaSel(), el=$("#look"), plan=S.planes.get(f), pr=S.propuesta[f], cuando=S.dia==="manana"?"mañana":"hoy";
+  if(S.busy&&S.busy.fecha===f){
+    el.innerHTML=`<div class="card"><div class="thinking"><span class="dots"><i></i><i></i><i></i></span><span>${S.busy.ancla?`Combinando con ${esc(S.busy.ancla)}…`:"Preparando tres looks…"}</span></div><div><button class="btn ghost sm" type="button" data-act="parar">Parar</button></div></div>`;return;
+  }
+  let html=S.err[f]?`<p class="err">${esc(S.err[f])}</p>`:"";
+  if(pr){
+    const prop=pr.opciones[pr.i], n=pr.opciones.length, pa=pr.ancla&&S.prendas.get(pr.ancla);
+    html+=lookCard(prop,{estado:`<span class="status">${n>1?`Propuesta ${pr.i+1} de ${n}`:"Propuesta"}</span>${pa?`<span class="ancla">Con tu ${esc(pa.nombre.toLowerCase())}</span>`:""}`,
+      extra:(n>1?pager(pr):"")+fbBox(prop),acciones:
+      `<button class="btn primary" type="button" data-act="preparar">Dejar preparado</button>
+       <button class="btn" type="button" data-act="otro">Otros 3 looks</button>
+       <button class="btn ghost" type="button" data-act="fav">♡ Favorito</button>`});
+  } else if(plan){
+    html+=lookCard(plan,{estado:`<span class="status ok">✓ Preparado para ${cuando}</span>`,acciones:
+      `<button class="btn" type="button" data-act="otro">Cambiar look</button>
+       <button class="btn ghost" type="button" data-act="favPlan">♡ Favorito</button>
+       <button class="btn ghost" type="button" data-act="quitarPlan" data-f="${f}">Quitar</button>`});
+  } else if(!S.loaded){
+    html+=`<div class="card"><span class="muted">Abriendo tu armario…</span></div>`;
+  } else if(!S.prendas.size){
+    html+=`<div class="card empty"><b>Tu armario está vacío</b><span class="muted">Carga tus 45 prendas ya descritas o añade fotos nuevas.</span>
+      <div class="row" style="justify-content:center"><button class="btn gold" type="button" data-act="cargarCatalogo">Cargar mis 45 prendas</button><button class="btn" type="button" data-act="tab" data-v="anadir">Añadir fotos</button></div></div>`;
+  } else {
+    html+=`<div class="card empty"><span class="muted">${S.prendas.size} prendas listas para combinar</span>
+      <button class="btn gold" type="button" data-act="sugerir" ${hayClave()?"":"disabled"}>Sugerir looks para ${cuando}</button>
+      <span class="muted" style="font-size:13px">¿Ya sabes qué prenda te apetece? Ábrela en el armario y pulsa “Créame un look con ella”.</span></div>`;
+  }
+  el.innerHTML=html;
+}
+/* Preselección: solo se envía a Claude lo que encaja con el tiempo y la ocasión (abarata cada petición) */
+const ESTILO_OCAS={"Trabajo":["smart casual","formal","casual chic"],"Reunión":["formal","smart casual","casual chic"],"Casual":["casual","casual chic","smart casual","deportivo"],"Cena o fiesta":["fiesta","casual chic","formal","smart casual"],"Fin de semana":["casual","casual chic","deportivo"],"Viaje":["casual","casual chic","smart casual","deportivo"]};
+const TOPE={arriba:60,abajo:40,abrigo:25,zapatos:25,bolso:15,accesorio:20,joya:20};
+const lista=v=>String(v||"").toLowerCase().split(/\s*,\s*/).filter(Boolean);
+function estacionesValidas(tmin,tmax){
+  const m=(tmin+tmax)/2, s=new Set(["todo el año",""]);
+  if(m<12){s.add("invierno");s.add("entretiempo")}
+  else if(m<=20){s.add("entretiempo");if(tmin<10)s.add("invierno");if(tmax>22)s.add("verano")}
+  else{s.add("verano");s.add("entretiempo")}
+  return s;
+}
+function ultimoUso(){const u=new Map();S.planes.forEach(pl=>(pl.piezas||[]).forEach(id=>{if(!u.has(id)||u.get(id)<pl.fecha)u.set(id,pl.fecha)}));return u}
+function seleccion(ocasiones,{fechas=[],excluir=[],vetadas=[],tmin=S.tmin,tmax=S.tmax,lluvia=null,ancla=null}={}){
+  const est=estacionesValidas(tmin,tmax), veto=new Set(vetadas), estilos=new Set(ocasiones.flatMap(o=>ESTILO_OCAS[o]||[]));
+  const llevadas=new Set(excluir); fechas.forEach(f=>recientes(f).forEach(id=>llevadas.add(id)));
+  const uso=ultimoUso(), factor=Math.min(2,1+(ocasiones.length-1)*.25), out=[];
+  for(const [cat] of CATS){
+    const todas=ordenadas().filter(p=>p.categoria===cat&&!veto.has(p.id)&&p.id!==ancla);
+    const okEst=p=>{const l=lista(p.estacion);return !l.length||l.some(x=>est.has(x))};
+    const okSty=p=>{const l=lista(p.estilo);return !l.length||l.some(x=>estilos.has(x))};
+    const okUso=p=>!(["arriba","abajo"].includes(cat)&&llevadas.has(p.id));
+    let c=todas.filter(p=>okEst(p)&&okSty(p)&&okUso(p));
+    if(c.length<4) c=todas.filter(p=>okEst(p)&&okUso(p));
+    if(c.length<4) c=todas.filter(okUso);
+    if(c.length<2) c=todas;
+    if(cat==="zapatos"&&lluvia!=null&&lluvia>=50){ // con lluvia, fuera ante, terciopelo y bailarinas
+      const s=c.filter(sinLluviaDelicado), s2=todas.filter(sinLluviaDelicado);
+      c=s.length>=2?s:s2.length?s2:c; }
+    const tope=Math.round(TOPE[cat]*factor);
+    if(c.length>tope) c=c.map(p=>({p,k:(uso.get(p.id)||"0000")+Math.random()})).sort((a,b)=>a.k<b.k?-1:1).slice(0,tope).map(x=>x.p); // primero lo menos usado
+    out.push(...c);
+  }
+  if(ancla&&S.prendas.has(ancla)) out.push(S.prendas.get(ancla));
+  out.sort((a,b)=>(a.n||0)-(b.n||0));
+  const limpio=x=>String(x||"").replace(/[|\n]/g,"/");
+  return {texto:out.map(p=>[p.id,p.categoria,p.nombre,p.color,limpio(p.descripcion).slice(0,70),p.estilo].map(limpio).join("|")).join("\n"),enviadas:out.length,total:S.prendas.size};
+}
+function recientes(f,dias=3){
+  const d=parse(f), out=new Set();
+  for(let i=-dias;i<=dias;i++){ if(!i) continue; const p=S.planes.get(ymd(addDays(d,i))); p&&(p.piezas||[]).forEach(x=>out.add(x)); }
+  return [...out];
+}
+const ESTILISTA=`Eres una estilista profesional de prestigio internacional reconocido, con años vistiendo a mujeres reales para su día a día. Tu sello es una elegancia moderna y sencilla: looks actuales, nunca estridentes ni extravagantes, que favorecen y se ven pensados sin esfuerzo aparente.
+Cómo trabajas:
+- Antes de proponer, valoras varias combinaciones y te quedas con las mejores; no propones la primera que se te ocurre.
+- Trabajas el color con método:
+  · Los neutros (negro, marino, crudo, blanco, gris, beige, camel) combinan entre sí y con todo; no cuentan como color.
+  · Regla 60-30-10: 60 % base (parte de abajo y chaqueta, normalmente neutros), 30 % secundario (parte de arriba, neutro o tono suave) y 10 % acento (zapatos, pañuelo, joya o bolso, o la pieza protagonista).
+  · Armonías, de más a menos habitual: neutros con un acento; monocromática (tonos de un mismo color); análoga (colores vecinos del círculo cromático, p. ej. granate y rosa palo); complementaria solo en el 10 % de acento (p. ej. marino con un toque cobre o camel).
+  · Un estampado ocupa el 30 % o el 10 %, nunca el 60 %, y solo uno por look.
+- Cuidas las proporciones y siluetas y el equilibrio de texturas.
+- Adecuas el nivel de formalidad exactamente a la ocasión y la ropa a la temperatura y a la lluvia, con capas cuando hay mucha diferencia entre mínima y máxima.
+- Menos es más: como máximo una pieza protagonista por look. Los estampados animales (leopardo, cebra) son un recurso puntual: úsalos solo cuando de verdad eleven el look, nunca por costumbre; la mayoría de looks no los llevan.
+- Complementos y joyas solo si suman, uno o dos como mucho.
+- Un look completo lleva parte de arriba y de abajo (o un vestido), zapatos, y chaqueta o abrigo si el tiempo lo pide; bolso cuando tenga sentido.
+- Conoces a tu clienta: tienes muy en cuenta lo que le ha gustado y lo que no le convenció otras veces.
+- Solo usas prendas de la lista que te dan, por su id.
+Escribes en español de España, con un tono cercano y profesional.`;
+const ESTILO_DEF=`Mi armario se basa en neutros (negro, marino, crudo) con algunos detalles que me gustan: leopardo, dorado, estrellas y gatos.`;
+const estiloUsuaria=()=>ls.get("kc.estilo",ESTILO_DEF).trim();
+const REGLAS_TXT=()=>{const e=estiloUsuaria();return e?`Lo que te ha contado sobre su estilo:\n${e}`:""};
+const esAnimal=p=>/leopardo|cebra|animal/i.test([p.tono,p.nombre,p.color].join(" "));
+const animalReciente=f=>recientes(f,2).some(id=>{const p=S.prendas.get(id);return p&&esAnimal(p)});
+const notaTxt=k=>{const t=ls.get("kc."+k,"").trim();return t?`Lo que te pide para esta vez (tiene prioridad sobre todo lo demás): ${t}`:""};
+const pensar=()=>ls.get("kc.pensar",true)&&ls.get("kc.sinPensar","")!==S.modelo;
+const limpiaPiezas=arr=>Array.isArray(arr)?[...new Set(arr.map(String))].filter(id=>S.prendas.has(id)):[];
+const juntar=arr=>arr.filter(Boolean).join("\n");
+
+/* Tres looks en una sola petición: las prendas se envían una vez y solo crece un poco la respuesta */
+/* Acierto: cuántas peticiones de look acaban en "Dejar preparado" y cuántas a la primera (sin pedir otros 3) */
+const ACI_DEF=()=>({desde:ymd(new Date()),rondas:0,preparadas:0,primera:0,opc:[0,0,0]});
+function acierto(fn){const a=ls.get("kc.acierto",null)||ACI_DEF();fn(a);ls.set("kc.acierto",a)}
+async function pedirLook(f,ocasion,{evitar=[],vetadas=[],motivo="",ancla=null,intentos=1}={}){
+  if(S.busy) return;
+  const pa=ancla?S.prendas.get(ancla):null, ctl=new AbortController();
+  S.busy={fecha:f,ctl,ancla:pa?pa.nombre.toLowerCase():""}; delete S.err[f]; S.fb={razones:[],prendas:[]}; S.fbOpen=false; renderLook();
+  const t=tempDe(f);
+  const sel=seleccion([ocasion],{fechas:[f],excluir:evitar,vetadas,tmin:t.min,tmax:t.max,lluvia:t.lluvia,ancla:pa?pa.id:null});
+  const prompt=juntar([
+`Propón TRES looks completos para el ${largo(f)} usando SOLO prendas de esta lista, ya preseleccionada para la ocasión y el tiempo. Que sean claramente distintos entre sí${pa?" (aparte de la prenda que quiere llevar)":" (que no compartan la parte de arriba ni la de abajo)"} y ordénalos del que más te convence al que menos.`,
+`Ocasión: ${ocasion}. ${tiempoTxt(t)}`,
+pa?`Quiere llevar sí o sí: ${pa.nombre} (${pa.id}). Los tres looks deben construirse alrededor de esa prenda.`:"",
+REGLAS_TXT(), favTxt([ocasion]), diarioTxt(),
+animalReciente(f)&&!(pa&&esAnimal(pa))?"Estos días ya ha llevado estampado animal: hoy evítalo.":"",
+notaTxt("notaHoy"),
+motivo?`De las propuestas que acaba de ver no le convenció: ${motivo}. Tenlo muy en cuenta.`:"",
+evitar.length?`Deben ser distintos de los looks que acaba de ver (${evitar.join(", ")}).`:"",
+`\nPrendas (id|categoría|prenda|color|detalle|estilo):\n${sel.texto}`,
+`\nFormato: {"looks":[{"titulo":"nombre corto y con gracia para el look","piezas":["p07","p14"],"nota":"una o dos frases: qué armonía de color usa (p. ej. base marino, acento cobre), por qué funciona y un consejo práctico"}]}`]);
+  try{
+    const r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:2000,system:ESTILISTA,pensar:pensar()});
+    const arr=Array.isArray(r&&r.looks)?r.looks:(r&&r.piezas?[r]:[]), opciones=[];
+    for(const x of arr){
+      const piezas=limpiaPiezas(x&&x.piezas); if(pa&&!piezas.includes(pa.id)) piezas.unshift(pa.id);
+      if(piezas.length<2) continue;
+      opciones.push({titulo:String(x.titulo||"Tu look").slice(0,80),piezas,nota:String(x.nota||"").slice(0,400),ocasion,vistas:`${sel.enviadas} de ${sel.total}`});
+      if(opciones.length===3) break;
+    }
+    if(!opciones.length) throw new ClaudeError("encaje");
+    S.propuesta[f]={opciones,i:0,ancla:pa?pa.id:null,intentos};
+    if(intentos===1) acierto(a=>a.rondas++);
+  }catch(e){ const m=e.code==="encaje"?"La propuesta no encajaba con tu armario. Prueba otra vez.":errMsg(e); if(m) S.err[f]=m; }
+  finally{ S.busy=null; renderLook(); }
+}
+
+/* ---------- Armario ---------- */
+function renderArmario(){
+  const all=ordenadas();
+  $("#cuentaPrendas").textContent=all.length?`${all.length} prendas`:"";
+  $("#catChips").innerHTML=[["todo","Todo"],...CATS].map(([k,n])=>{
+    const c=k==="todo"?all.length:all.filter(p=>p.categoria===k).length;
+    return `<button type="button" class="chip" data-act="cat" data-v="${k}" aria-pressed="${S.cat===k}">${esc(n)} <span class="count">${c}</span></button>`}).join("");
+  renderGrid();
+}
+function renderGrid(){
+  const q=S.q.trim().toLowerCase(), g=$("#grid");
+  const list=ordenadas().filter(p=>(S.cat==="todo"||p.categoria===S.cat)&&(!q||[p.nombre,p.marca,p.color,p.descripcion,p.estilo,p.estacion,"nº "+p.n].join(" ").toLowerCase().includes(q)));
+  if(!S.loaded){g.innerHTML=`<p class="muted">Abriendo…</p>`;return}
+  if(!S.prendas.size){g.innerHTML=`<div class="card empty"><b>Aún no hay prendas</b><div class="row" style="justify-content:center"><button class="btn gold" type="button" data-act="cargarCatalogo">Cargar mis 45 prendas</button><button class="btn" type="button" data-act="tab" data-v="anadir">Añadir fotos</button></div></div>`;return}
+  if(!list.length){g.innerHTML=`<p class="muted">Nada coincide con “${esc(S.q)}”.</p>`;return}
+  g.innerHTML=`<div class="grid">${list.map(p=>`<button type="button" class="tile" data-act="ficha" data-id="${esc(p.id)}"><span class="thumb">${visual(p)}<span class="tag">Nº ${p.n}</span></span><span class="nm">${esc(p.nombre)}</span></button>`).join("")}</div>`;
+}
+
+/* ---------- Formulario de etiquetas ---------- */
+function campos(pre,p){
+  const sel=(id,opts,v)=>`<select id="${pre}-${id}">${opts.map(([k,n])=>`<option value="${esc(k)}" ${k===v?"selected":""}>${esc(n)}</option>`).join("")}</select>`;
+  const pick=(id,opts,v)=>{const on=lista(v);const all=[...opts,...on.filter(x=>!opts.includes(x))];
+    return `<div class="chips pick" id="${pre}-${id}">${all.map(o=>`<button type="button" class="chip" data-act="pick" data-v="${esc(o)}" aria-pressed="${on.includes(o)}">${esc(o)}</button>`).join("")}</div>`};
+  return `<div class="fields">
+    <label class="full">Nombre<input id="${pre}-nombre" value="${esc(p.nombre)}" placeholder="Blazer rosa palo"></label>
+    <label>Categoría${sel("categoria",CATS,p.categoria||"arriba")}</label>
+    <label>Marca<input id="${pre}-marca" value="${esc(p.marca)}"></label>
+    <label>Color<input id="${pre}-color" value="${esc(p.color)}"></label>
+    <div class="full pickbox"><span>Estación · marca todas las que encajen</span>${pick("estacion",ESTACIONES,p.estacion)}</div>
+    <div class="full pickbox"><span>Estilo · marca todos los que encajen</span>${pick("estilo",ESTILOS,p.estilo)}</div>
+    <p class="full hint">Estación y estilo deciden qué prendas ve Claude al proponer un look: cuanto más precisas, mejores looks y más baratos.</p>
+    <label>Tono de la tarjeta<input id="${pre}-tono" value="${esc(p.tono)}" placeholder="#1c2235 o leopardo"></label>
+    <label class="full">Detalles<textarea id="${pre}-descripcion">${esc(p.descripcion)}</textarea></label></div>`;
+}
+function leer(pre){
+  const g=id=>{const el=document.getElementById(`${pre}-${id}`);return el?el.value.trim():""};
+  const pk=id=>[...document.querySelectorAll(`#${pre}-${id} [aria-pressed="true"]`)].map(b=>b.dataset.v).join(", ");
+  return {nombre:g("nombre"),categoria:g("categoria"),marca:g("marca"),color:g("color"),estilo:pk("estilo"),estacion:pk("estacion"),tono:g("tono"),descripcion:g("descripcion")};
+}
+async function prepararFoto(file){
+  const bmp=await createImageBitmap(file);
+  const mk=max=>{const s=Math.min(1,max/Math.max(bmp.width,bmp.height));const c=document.createElement("canvas");c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);return c};
+  const blob=await new Promise(r=>mk(1024).toBlob(r,"image/jpeg",.85));
+  const foto=mk(420).toDataURL("image/jpeg",.72);
+  bmp.close&&bmp.close();
+  return {blob,foto};
+}
+async function etiquetar(blob){
+  const r=await pedirJSON(`La foto muestra una prenda, unos zapatos, un bolso o un complemento de un armario personal. Etiquétala en español.
+Formato:
+{"nombre":"nombre corto y descriptivo, p. ej. Blazer rosa palo","categoria":"abrigo | arriba | abajo | zapatos | bolso | accesorio | joya","marca":"solo si se lee en una etiqueta, si no vacío","color":"color o colores principales","tono":"#hex del color dominante, o leopardo / cebra / dorado si es eso","estilo":"todos los que encajen, separados por comas, de: casual, casual chic, smart casual, formal, fiesta, deportivo","estacion":"todas las que encajen, separadas por comas, de: entretiempo, invierno, verano; o solo todo el año si sirve siempre","descripcion":"una frase corta: tejido, corte, cuello, manga, estampado o detalles"}
+(abrigo = chaquetas, blazers y abrigos; abajo = pantalones, faldas y vestidos; accesorio = pañuelos, fulares y cinturones; joya = collares, pendientes, pulseras.)`,{imagen:blob,maxTokens:600});
+  const o={}; ["nombre","categoria","marca","color","tono","estilo","estacion","descripcion"].forEach(k=>o[k]=String(r&&r[k]||"").slice(0,300));
+  if(!CATN[o.categoria]) o.categoria="arriba";
+  return o;
+}
+
+/* ---------- Añadir ---------- */
+let draftSeq=0;
+const listos=()=>S.drafts.filter(x=>x.estado!=="leyendo").length;
+function renderDraft(d){
+  let el=document.getElementById("d-"+d.k);
+  if(!el){el=document.createElement("article");el.className="card";el.id="d-"+d.k;$("#drafts").prepend(el)}
+  const estado=d.estado==="leyendo"?`<span class="status"><span class="dots"><i></i><i></i><i></i></span> Etiquetando…</span>`:
+    d.estado==="error"?`<span class="err">${esc(d.msg)}</span>`:
+    d.estado==="lista"?`<span class="status">Revisa las etiquetas</span>`:`<span class="status">Rellena las etiquetas</span>`;
+  el.innerHTML=`<div class="draft"><span class="thumb">${visual({...d.datos,foto:d.foto})}</span><div style="display:grid;gap:10px">${estado}
+    ${d.estado==="leyendo"?"":campos("dr"+d.k,d.datos)}
+    ${d.estado==="leyendo"?"":`<div class="row"><button class="btn primary sm" type="button" data-act="guardarDraft" data-k="${d.k}">Guardar en el armario</button><button class="btn ghost sm" type="button" data-act="descartar" data-k="${d.k}">Descartar</button></div>`}
+  </div></div>`;
+  $("#guardarTodas").hidden=listos()<2;
+}
+async function nuevasFotos(files){
+  const nuevos=[...files].map(file=>({k:++draftSeq,file,estado:"leyendo",datos:{nombre:"",categoria:"arriba"},foto:null}));
+  S.drafts.push(...nuevos); nuevos.forEach(renderDraft);
+  for(const d of nuevos){
+    try{ const {blob,foto}=await prepararFoto(d.file); d.foto=foto; d.blob=blob; }
+    catch{ d.estado="error"; d.msg="No se ha podido abrir esta foto."; renderDraft(d); continue; }
+    if(hayClave()){
+      try{ d.datos=await etiquetar(d.blob); d.estado="lista"; }
+      catch(e){ d.estado="error"; d.msg=(errMsg(e)||"Etiquetado cancelado.")+" Rellena las etiquetas a mano."; }
+    } else { d.estado="manual"; $("#avisoIA").hidden=false; }
+    delete d.file; renderDraft(d);
+  }
+}
+function siguienteN(){let m=0;S.prendas.forEach(p=>m=Math.max(m,p.n||0));return m+1}
+async function guardarDraft(k){
+  const d=S.drafts.find(x=>x.k===k); if(!d) return false;
+  const datos=leer("dr"+k); if(!datos.nombre){toast("Ponle un nombre a la prenda");return false}
+  const id="p"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  try{ await guardar("prendas",{id,...datos,n:siguienteN(),foto:d.foto||"",creado:new Date().toISOString()}); }
+  catch(e){ toast(e&&e.name==="QuotaExceededError"?"El móvil no tiene espacio para más fotos.":"No se ha podido guardar."); return false }
+  S.drafts=S.drafts.filter(x=>x.k!==k); document.getElementById("d-"+k)?.remove();
+  $("#guardarTodas").hidden=listos()<2;
+  return true;
+}
+
+/* ---------- Ficha ---------- */
+function abrirFicha(id){ const p=S.prendas.get(id); if(!p) return; S.ficha={id,foto:null,confirmar:false}; pintarFicha(p); $("#sheet").hidden=false; }
+function pintarFicha(p,datos){
+  const f=S.ficha, foto=f.foto??p.foto, d=datos||p;
+  $("#sheetPanel").innerHTML=`
+    <div class="hero"><span class="thumb">${visual({...d,foto})}</span>
+      <div style="display:grid;gap:6px"><span class="eyebrow">Nº ${p.n} · ${esc(CATN[d.categoria]||"")}</span><h2>${esc(d.nombre)}</h2>
+      <div class="row"><button class="btn sm" type="button" data-act="cambiarFoto">${foto?"Cambiar foto":"Añadir foto"}</button>
+      ${f.foto&&hayClave()?`<button class="btn sm gold" type="button" data-act="reetiquetar">Etiquetar con la foto</button>`:""}</div>
+      <span id="fichaEstado"></span></div></div>
+    ${hayClave()?`<button class="btn gold" type="button" data-act="lookCon">✨ Créame un look con ella para ${S.dia==="manana"?"mañana":"hoy"}</button>`:""}
+    ${campos("fi",d)}
+    ${f.confirmar?`<div class="banner"><span>¿Eliminar esta prenda del armario?</span><span class="row"><button class="btn sm danger" type="button" data-act="eliminarSi">Sí, eliminar</button><button class="btn sm ghost" type="button" data-act="eliminarNo">Cancelar</button></span></div>`:""}
+    <div class="row" style="justify-content:space-between"><span class="row"><button class="btn primary" type="button" data-act="guardarFicha">Guardar</button><button class="btn ghost" type="button" data-act="cerrar">Cerrar</button></span>
+      <button class="btn ghost danger" type="button" data-act="eliminar">Eliminar</button></div>`;
+}
+function cerrarFicha(){ $("#sheet").hidden=true; S.ficha=null; }
+
+/* ---------- Favoritos ---------- */
+async function guardarFav(l){
+  try{ await guardar("favoritos",{id:"f"+Date.now().toString(36),titulo:l.titulo,piezas:l.piezas,nota:l.nota||"",ocasion:l.ocasion||"",creado:new Date().toISOString()}); toast("Guardado en favoritos"); }
+  catch{ toast("No se ha podido guardar."); }
+}
+function renderFavs(){
+  const el=$("#favList"), list=[...S.favs.values()].sort((a,b)=>String(b.creado).localeCompare(String(a.creado)));
+  if(!list.length){el.innerHTML=`<div class="card empty"><b>Sin favoritos todavía</b><span class="muted">Cuando un look te guste, pulsa ♡ Favorito para tenerlo a mano.</span></div>`;return}
+  el.innerHTML=list.map(l=>lookCard(l,{estado:"",acciones:
+    `<button class="btn primary sm" type="button" data-act="favManana" data-id="${esc(l.id)}">Preparar para mañana</button>
+     <button class="btn ghost sm" type="button" data-act="favQuitar" data-id="${esc(l.id)}">Quitar</button>`})).join("");
+}
+
+/* ---------- Semana ---------- */
+const semana=()=>Array.from({length:7},(_,i)=>ymd(addDays(new Date(),i)));
+const ocasDia=f=>S.planes.get(f)?.ocasion||S.semOcas[f]||([0,6].includes(parse(f).getDay())?"Fin de semana":"Trabajo");
+function renderSemana(){
+  if(document.activeElement!==$("#notaSem")) $("#notaSem").value=ls.get("kc.notaSem","");
+  const hoy=ymd(new Date()), man=ymd(addDays(new Date(),1));
+  $("#btnSemana").disabled=!hayClave()||!!S.semBusy||!S.prendas.size;
+  $("#btnSemana").textContent=S.semBusy?"Planificando…":"Planificar los días libres";
+  $("#dias").innerHTML=semana().map(f=>{
+    const d=parse(f), plan=S.planes.get(f), busy=S.semBusy&&S.semBusy.dias.includes(f), ps=plan?porLook(plan.piezas||[]):[];
+    return `<article class="card day ${f===hoy?"today":""}">
+      <div class="day-h"><span><b>${DIAS[d.getDay()]} ${d.getDate()}</b> <span class="muted" style="font-size:13px">${f===hoy?"hoy":f===man?"mañana":""}</span>${tiempoCorto(f)}</span>
+        <select id="oc-${f}" data-act="ocasDia" data-f="${f}" aria-label="Ocasión">${OCAS.map(o=>`<option ${o===ocasDia(f)?"selected":""}>${esc(o)}</option>`).join("")}</select></div>
+      ${busy?`<div class="thinking"><span class="dots"><i></i><i></i><i></i></span><span class="muted">Combinando…</span></div>`:
+        plan?`<button type="button" class="piece" style="grid-template-columns:1fr" data-act="verDia" data-f="${f}"><div><b>${esc(plan.titulo)}</b><span>${ps.map(p=>esc(p.nombre)).join(" · ")}</span></div></button>
+          <div class="strip">${ps.map(p=>`<span class="thumb">${visual(p)}</span>`).join("")}</div>`:`<span class="muted">Sin planificar</span>`}
+      <div class="row">${plan?`<button class="btn ghost sm" type="button" data-act="quitarPlan" data-f="${f}">Quitar</button>`:""}
+        <button class="btn sm" type="button" data-act="sugerirDia" data-f="${f}" ${!hayClave()||S.semBusy?"disabled":""}>${plan?"Otro look":"Sugerir"}</button></div>
+    </article>`}).join("");
+}
+async function planificar(dias){
+  if(S.semBusy||!dias.length) return;
+  const ctl=new AbortController(); S.semBusy={dias,ctl}; $("#semErr").innerHTML=""; renderSemana();
+  const fijos=semana().filter(f=>S.planes.has(f)&&!dias.includes(f)).map(f=>`${f}: ${(S.planes.get(f).piezas||[]).join(", ")}`);
+  const ocs=[...new Set(dias.map(ocasDia))], ts=dias.map(tempDe);
+  const sel=seleccion(ocs,{tmin:Math.min(...ts.map(t=>t.min)),tmax:Math.max(...ts.map(t=>t.max))});
+  const prompt=juntar([
+`Planifica un look por día usando SOLO prendas de esta lista, ya preseleccionada para las ocasiones y el tiempo.
+Días a planificar:
+${dias.map(f=>`- ${f} (${largo(f)}): ${ocasDia(f)}. ${tiempoTxt(tempDe(f))}`).join("\n")}`,
+REGLAS_TXT(), favTxt(ocs), diarioTxt(),
+"Reparte bien: no repitas la misma parte de arriba en la semana y evita repetir parte de abajo en días seguidos. Zapatos, bolsos y joyas pueden repetirse. Como mucho uno o dos looks de la semana con estampado animal.",
+notaTxt("notaSem"),
+fijos.length?`Estos días ya están decididos, tenlos en cuenta para no repetir:\n${fijos.join("\n")}`:"",
+`\nPrendas (id|categoría|prenda|color|detalle|estilo):\n${sel.texto}`,
+`\nFormato: {"dias":[{"fecha":"AAAA-MM-DD","titulo":"nombre corto del look","piezas":["p07","p14"],"nota":"una frase: armonía de color y por qué funciona"}]}`]);
+  try{
+    const r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:3000,system:ESTILISTA,pensar:pensar()});
+    let n=0;
+    for(const x of (Array.isArray(r&&r.dias)?r.dias:[])){
+      const f=String(x&&x.fecha||""); if(!dias.includes(f)) continue;
+      const piezas=limpiaPiezas(x.piezas); if(piezas.length<2) continue;
+      await guardar("planes",{id:f,fecha:f,ocasion:ocasDia(f),titulo:String(x.titulo||"Look").slice(0,80),piezas,nota:String(x.nota||"").slice(0,400)}); n++;
+    }
+    if(!n) $("#semErr").innerHTML=`<p class="err">La propuesta no encajaba con tu armario. Prueba otra vez.</p>`;
+  }catch(e){ const m=errMsg(e); if(m) $("#semErr").innerHTML=`<p class="err">${esc(m)}</p>`; }
+  finally{ S.semBusy=null; renderSemana(); }
+}
+
+/* ---------- Ajustes ---------- */
+function renderAjustes(){
+  const inp=$("#clave"); if(document.activeElement!==inp) inp.value=S.key;
+  $("#modelo").value=S.modelo;
+  if(!$("#estadoClave").dataset.fijo) $("#estadoClave").innerHTML=S.key?`<span class="status ok">✓ Clave guardada en este móvil</span>`:`<span class="muted">Todavía no hay clave.</span>`;
+  if(document.activeElement!==$("#estilo")) $("#estilo").value=estiloUsuaria();
+  $("#pensar").checked=!!ls.get("kc.pensar",true);
+  const g=ls.get("kc.gasto",{})[mesActual()]||{usd:0,n:0};
+  $("#gasto").textContent=`${g.usd.toFixed(g.usd<1?3:2).replace(".",",")} $ · ${g.n} ${g.n===1?"petición":"peticiones"}`;
+  const geo=ls.get("kc.geo",null);
+  $("#geoEstado").innerHTML=geo?`<span class="status ok">✓ Activado</span> <span class="muted">${S.prev.t?"· previsión de "+new Date(S.prev.t).toLocaleString("es-ES",{weekday:"long",hour:"2-digit",minute:"2-digit"}):"· sin datos todavía"}</span>`:`<span class="muted">Desactivado: pones la temperatura a mano.</span>`;
+  $("#btnGeo").textContent=geo?"Actualizar mi zona":"Activar"; $("#btnGeoQuitar").hidden=!geo;
+  const di=ls.get("kc.diario",[]);
+  $("#diario").innerHTML=di.length?di.map((x,i)=>`<li><span>${x.t==="si"?"👍 Eligió":"👎 No le convenció"} ${esc(x.txt)}</span><button class="btn ghost sm" type="button" data-act="diarioQuita" data-v="${i}" aria-label="Olvidar esto">✕</button></li>`).join(""):`<li class="muted">Aún nada. Aprenderá en cuanto dejes looks preparados o le digas qué no te convence.</li>`;
+  $("#btnDiarioBorrar").hidden=!di.length;
+  const ac=ls.get("kc.acierto",null)||ACI_DEF(), pc=(x,y)=>y?Math.round(x*100/y)+" %":"–";
+  $("#acierto").innerHTML=ac.rondas?`<p style="font:500 22px var(--f-mono);font-variant-numeric:tabular-nums">${pc(ac.primera,ac.rondas)} a la primera</p>
+    <p class="muted" style="font-size:14px">Desde el ${esc(largo(ac.desde))}: ${ac.rondas} ${ac.rondas===1?"petición":"peticiones"} de look, ${ac.preparadas} ${ac.preparadas===1?"dejado preparado":"dejados preparados"} (${pc(ac.preparadas,ac.rondas)}). Elegiste la propuesta 1 ${ac.opc[0]} ${ac.opc[0]===1?"vez":"veces"}, la 2 ${ac.opc[1]} y la 3 ${ac.opc[2]}.</p>`
+    :`<p class="muted" style="font-size:14px">Aún no hay datos. Cuenta cuántas veces dejas preparado un look sin pedir otros 3.</p>`;
+  $("#btnAciertoReset").hidden=!ac.rondas;
+  $("#catalogoCard").hidden=CATALOGO.every(c=>S.prendas.has(idCat(c[0])));
+  $("#instalarCard").hidden=!S.instalar;
+  if(navigator.storage&&navigator.storage.estimate) navigator.storage.estimate().then(e=>{$("#espacio").textContent=`Ocupado en el móvil: ${(e.usage/1048576).toFixed(1)} MB`}).catch(()=>{});
+}
+const idCat=n=>"p"+String(n).padStart(2,"0");
+async function cargarCatalogo(){
+  const nuevas=CATALOGO.filter(c=>!S.prendas.has(idCat(c[0]))).map(([n,nombre,categoria,marca,color,tono,estilo,estacion,descripcion])=>({id:idCat(n),n,nombre,categoria,marca,color,tono,estilo,estacion,descripcion,foto:""}));
+  if(!nuevas.length){toast("Tu catálogo ya está cargado");return}
+  await DB.putMany("prendas",nuevas); nuevas.forEach(p=>S.prendas.set(p.id,p)); renderAll(); toast(`${nuevas.length} prendas cargadas`);
+}
+async function exportar(){
+  const datos={app:"kekas-closet",version:1,fecha:new Date().toISOString(),prendas:await DB.all("prendas"),planes:await DB.all("planes"),favoritos:await DB.all("favoritos"),diario:ls.get("kc.diario",[])};
+  const url=URL.createObjectURL(new Blob([JSON.stringify(datos)],{type:"application/json"}));
+  const a=document.createElement("a"); a.href=url; a.download=`kekas-closet-${ymd(new Date())}.json`; document.body.append(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),5000); toast("Copia descargada");
+}
+async function importar(file){
+  try{
+    const d=JSON.parse(await file.text());
+    if(d.app!=="kekas-closet") throw 0;
+    for(const s of STORES){ const arr=Array.isArray(d[s])?d[s].filter(o=>o&&typeof o.id==="string"):[]; if(arr.length) await DB.putMany(s,arr); }
+    if(Array.isArray(d.diario)&&d.diario.length) ls.set("kc.diario",d.diario.filter(x=>x&&typeof x.txt==="string").slice(0,14));
+    await cargarTodo(); toast("Copia restaurada");
+  }catch{ toast("Ese archivo no es una copia de Kekas Closet."); }
+}
+
+/* ---------- Eventos ---------- */
+const alternar=(arr,x)=>{const i=arr.indexOf(x);if(i<0)arr.push(x);else arr.splice(i,1);return i<0};
+document.addEventListener("click",async ev=>{
+  const b=ev.target.closest("[data-act]"); if(!b||b.tagName==="SELECT") return;
+  const a=b.dataset.act, v=b.dataset.v, f=b.dataset.f;
+  switch(a){
+    case "tab": setTab(v); break;
+    case "dia": S.dia=v; renderHoy(); break;
+    case "ocasion": S.ocasion=v; ls.set("kc.ocasion",v); renderHoy(); break;
+    case "sugerir": pedirLook(fechaSel(),S.ocasion); break;
+    case "otro": { const fs=fechaSel(), pr=S.propuesta[fs], plan=S.planes.get(fs);
+      const vistas=pr?pr.opciones.flatMap(o=>o.piezas):plan?(plan.piezas||[]):[];
+      const vetadas=S.fb.prendas.slice();
+      const motivo=[...S.fb.razones.map(x=>x.toLowerCase()),vetadas.length?"no le apetece "+vetadas.map(nombreDe).join(", ").toLowerCase():""].filter(Boolean).join("; ");
+      if(motivo&&pr){ const l=pr.opciones[pr.i]; anotarDiario("no",`«${l.titulo}» (${nombres(l.piezas)}): ${motivo}`); }
+      const ancla=pr&&pr.ancla&&!vetadas.includes(pr.ancla)?pr.ancla:null;
+      pedirLook(fs,S.ocasion,{evitar:[...new Set(vistas)].filter(x=>x!==ancla),vetadas,motivo,ancla,intentos:pr?(pr.intentos||1)+1:1}); break; }
+    case "opc": { const pr=S.propuesta[fechaSel()]; if(!pr) break; const n=pr.opciones.length; pr.i=(pr.i+Number(v)+n)%n; renderLook(); break; }
+    case "fbRazon": b.setAttribute("aria-pressed",alternar(S.fb.razones,v)); break;
+    case "fbPieza": b.setAttribute("aria-pressed",alternar(S.fb.prendas,b.dataset.id)); break;
+    case "parar": S.busy&&S.busy.ctl.abort(); break;
+    case "preparar": { const fs=fechaSel(), l=propActual(fs), pr=S.propuesta[fs]; if(!l) break;
+      try{ await guardar("planes",{id:fs,fecha:fs,...l});
+        acierto(a=>{a.preparadas++; if((pr.intentos||1)===1)a.primera++; if(pr.i<3)a.opc[pr.i]++;}); anotarDiario("si",`«${l.titulo}» para ${(l.ocasion||"").toLowerCase()}: ${nombres(l.piezas)}`); delete S.propuesta[fs]; ls.del("kc.notaHoy"); $("#notaHoy").value=""; toast(S.dia==="manana"?"Listo para mañana":"Listo para hoy"); }catch{ toast("No se ha podido guardar."); }
+      renderLook(); break; }
+    case "fav": { const l=propActual(fechaSel()); l&&guardarFav(l); break; }
+    case "favPlan": { const l=S.planes.get(fechaSel()); l&&guardarFav(l); break; }
+    case "quitarPlan": await borrar("planes",f); break;
+    case "cat": S.cat=v; renderArmario(); break;
+    case "pick": b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true"); break;
+    case "ficha": abrirFicha(b.dataset.id); break;
+    case "cerrar": cerrarFicha(); break;
+    case "lookCon": { const id=S.ficha&&S.ficha.id; if(!id) break;
+      if(S.busy){toast("Espera, la estilista está con otro look");break}
+      cerrarFicha(); setTab("hoy"); pedirLook(fechaSel(),S.ocasion,{ancla:id}); break; }
+    case "cambiarFoto": $("#fotoFicha").value=""; $("#fotoFicha").click(); break;
+    case "reetiquetar": { const fi=S.ficha; if(!fi||!fi.blob) break; $("#fichaEstado").innerHTML=`<span class="status"><span class="dots"><i></i><i></i><i></i></span> Etiquetando…</span>`;
+      try{ const o=await etiquetar(fi.blob); if(S.ficha!==fi) break; pintarFicha(S.prendas.get(fi.id),{...leer("fi"),...o}); }
+      catch(e){ const el=$("#fichaEstado"); if(el) el.innerHTML=`<span class="err">${esc(errMsg(e))}</span>`; } break; }
+    case "guardarFicha": { const fi=S.ficha; if(!fi) break; const datos=leer("fi"); if(!datos.nombre){toast("Ponle un nombre");break}
+      const p=S.prendas.get(fi.id);
+      try{ await guardar("prendas",{...p,...datos,foto:fi.foto??p.foto??""}); toast("Guardado"); cerrarFicha(); }catch{ toast("No se ha podido guardar."); } break; }
+    case "eliminar": if(S.ficha){S.ficha.confirmar=true; pintarFicha(S.prendas.get(S.ficha.id),leer("fi"));} break;
+    case "eliminarNo": if(S.ficha){S.ficha.confirmar=false; pintarFicha(S.prendas.get(S.ficha.id),leer("fi"));} break;
+    case "eliminarSi": { const id=S.ficha&&S.ficha.id; if(!id) break; await borrar("prendas",id); toast("Prenda eliminada"); cerrarFicha(); break; }
+    case "sinfoto": { const d={k:++draftSeq,estado:"manual",datos:{nombre:"",categoria:"arriba"},foto:null}; S.drafts.push(d); renderDraft(d); break; }
+    case "guardarDraft": if(await guardarDraft(Number(b.dataset.k))) toast("Añadida al armario"); break;
+    case "guardarTodas": { let n=0; for(const d of [...S.drafts]) if(d.estado!=="leyendo"&&await guardarDraft(d.k)) n++; if(n) toast(`${n} prendas añadidas`); break; }
+    case "descartar": { const k=Number(b.dataset.k); S.drafts=S.drafts.filter(x=>x.k!==k); document.getElementById("d-"+k)?.remove(); $("#guardarTodas").hidden=listos()<2; break; }
+    case "favManana": { const l=S.favs.get(b.dataset.id); if(!l) break; const fs=ymd(addDays(new Date(),1));
+      await guardar("planes",{id:fs,fecha:fs,titulo:l.titulo,piezas:l.piezas,nota:l.nota||"",ocasion:l.ocasion||""}); toast("Preparado para mañana"); break; }
+    case "favQuitar": await borrar("favoritos",b.dataset.id); break;
+    case "planSemana": planificar(semana().filter(x=>!S.planes.has(x))); break;
+    case "sugerirDia": planificar([f]); break;
+    case "verDia": { const hoy=ymd(new Date()), man=ymd(addDays(new Date(),1)); if(f===hoy||f===man){S.dia=f===hoy?"hoy":"manana";setTab("hoy")} break; }
+    case "geo": activarGeo(); break;
+    case "geoQuitar": ls.del("kc.geo"); ls.del("kc.prev"); S.prev={t:0,dias:{}}; renderAll(); toast("Tiempo automático desactivado"); break;
+    case "tempPrev": quitarTempManual(fechaSel()); renderHoy(); break;
+    case "diarioQuita": { const d=ls.get("kc.diario",[]); d.splice(Number(v),1); ls.set("kc.diario",d); renderAjustes(); break; }
+    case "aciertoReset": ls.del("kc.acierto"); renderAjustes(); toast("Contador a cero"); break;
+    case "diarioBorrar": ls.del("kc.diario"); renderAjustes(); toast("La estilista empieza de cero"); break;
+    case "verClave": { const i=$("#clave"); i.type=i.type==="password"?"text":"password"; b.textContent=i.type==="password"?"Ver":"Ocultar"; break; }
+    case "guardarClave": { const k=$("#clave").value.trim(); if(!k){toast("Pega primero la clave");break}
+      if(!k.startsWith("sk-ant-")) toast("Ojo: las claves de Claude empiezan por sk-ant-");
+      S.key=k; ls.set("kc.key",k); delete $("#estadoClave").dataset.fijo; renderAll(); toast("Clave guardada"); break; }
+    case "borrarClave": S.key=""; ls.del("kc.key"); $("#clave").value=""; delete $("#estadoClave").dataset.fijo; renderAll(); toast("Clave borrada de este móvil"); break;
+    case "probar": { const k=$("#clave").value.trim(); if(k&&k!==S.key){S.key=k;ls.set("kc.key",k)}
+      const st=$("#estadoClave"); st.dataset.fijo="1"; st.innerHTML=`<span class="status"><span class="dots"><i></i><i></i><i></i></span> Probando…</span>`; b.disabled=true;
+      try{ await pedirClaude("Responde solo: OK",{maxTokens:10}); st.innerHTML=`<span class="status ok">✓ Conexión correcta con ${esc($("#modelo").selectedOptions[0].textContent.replace(/ \(.*/,""))}</span>`; }
+      catch(e){ st.innerHTML=`<span class="err">${esc(errMsg(e))}</span>`; }
+      finally{ b.disabled=false; renderAll(); } break; }
+    case "exportar": exportar(); break;
+    case "notaChip": { const id=b.dataset.for, el=$("#"+id), t=el.value.trim(); el.value=t?(t.replace(/[.,;]$/,"")+", "+v.toLowerCase()):v; ls.set("kc."+id,el.value); break; }
+    case "notaBorrar": { const id=b.dataset.for; $("#"+id).value=""; ls.del("kc."+id); break; }
+    case "guardarEstilo": ls.set("kc.estilo",$("#estilo").value.slice(0,1500)); toast("Estilo guardado"); break;
+    case "estiloDef": ls.del("kc.estilo"); $("#estilo").value=ESTILO_DEF; toast("Texto inicial recuperado"); break;
+    case "cargarCatalogo": cargarCatalogo(); break;
+    case "instalar": if(S.instalar){ S.instalar.prompt(); const r=await S.instalar.userChoice.catch(()=>null); if(r&&r.outcome==="accepted"){S.instalar=null;renderAll()} } break;
+  }
+});
+document.addEventListener("change",async ev=>{
+  const t=ev.target;
+  if(t.dataset&&t.dataset.act==="ocasDia"){ S.semOcas[t.dataset.f]=t.value; const p=S.planes.get(t.dataset.f); if(p) await guardar("planes",{...p,ocasion:t.value}); }
+  if(t.id==="modelo"){ S.modelo=t.value; ls.set("kc.modelo",t.value); }
+  if(t.id==="pensar"){ ls.set("kc.pensar",t.checked); ls.del("kc.sinPensar"); }
+});
+document.addEventListener("toggle",ev=>{ if(ev.target.classList&&ev.target.classList.contains("fb")) S.fbOpen=ev.target.open; },true);
+$("#sheet").addEventListener("click",ev=>{ if(ev.target.id==="sheet") cerrarFicha(); });
+document.addEventListener("keydown",ev=>{ if(ev.key==="Escape"&&!$("#sheet").hidden) cerrarFicha(); });
+["tmin","tmax"].forEach(k=>$("#"+k).addEventListener("input",()=>{
+  const a=$("#tmin").value, z=$("#tmax").value, mn=Number(a), mx=Number(z);
+  if(a===""||z===""||!Number.isFinite(mn)||!Number.isFinite(mx)) return;
+  S.tmin=mn; S.tmax=mx; ls.set("kc.tmin",mn); ls.set("kc.tmax",mx); fijarTemp(fechaSel(),mn,mx);
+  $("#tiempoInfo").innerHTML=tiempoInfo(fechaSel(),tempDe(fechaSel()));
+}));
+/* Deslizar el look a izquierda o derecha para ver las otras propuestas */
+let toque=null;
+$("#look").addEventListener("touchstart",e=>{const t=e.touches[0];toque=[t.clientX,t.clientY]},{passive:true});
+$("#look").addEventListener("touchend",e=>{
+  if(!toque) return; const t=e.changedTouches[0], dx=t.clientX-toque[0], dy=t.clientY-toque[1]; toque=null;
+  const pr=S.propuesta[fechaSel()]; if(!pr||pr.opciones.length<2||Math.abs(dx)<60||Math.abs(dy)>50) return;
+  const n=pr.opciones.length; pr.i=(pr.i+(dx<0?1:-1)+n)%n; renderLook();
+});
+["notaHoy","notaSem"].forEach(id=>$("#"+id).addEventListener("input",e=>ls.set("kc."+id,e.target.value.slice(0,300))));
+$("#buscar").addEventListener("input",e=>{S.q=e.target.value;renderGrid()});
+$("#fotos").addEventListener("change",e=>{ if(e.target.files.length) nuevasFotos(e.target.files); e.target.value=""; });
+$("#importar").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) importar(f); e.target.value=""; });
+$("#fotoFicha").addEventListener("change",async e=>{
+  const file=e.target.files[0], fi=S.ficha; if(!file||!fi) return;
+  try{ const {blob,foto}=await prepararFoto(file); if(S.ficha!==fi) return; fi.foto=foto; fi.blob=blob; pintarFicha(S.prendas.get(fi.id),leer("fi")); }
+  catch{ toast("No se ha podido abrir esta foto."); }
+});
+window.addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); S.instalar=e; renderAll(); });
+
+/* ---------- Arranque ---------- */
+async function cargarTodo(){
+  const [p,pl,fv]=await Promise.all(STORES.map(s=>DB.all(s)));
+  S.prendas.clear(); p.forEach(o=>S.prendas.set(o.id,o));
+  S.planes.clear(); pl.forEach(o=>S.planes.set(o.id,o));
+  S.favs.clear(); fv.forEach(o=>S.favs.set(o.id,o));
+  S.loaded=true; renderAll();
+}
+setTab("hoy");
+actualizarTiempo();
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) actualizarTiempo(); });
+cargarTodo().catch(()=>{ $("#look").innerHTML=`<p class="err">Este navegador no deja guardar datos. Abre la app en Chrome, fuera del modo incógnito.</p>`; });
+if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+if("serviceWorker" in navigator&&location.protocol==="https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
+})();
+</script>
+</body>
+</html>
