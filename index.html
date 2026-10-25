@@ -469,7 +469,15 @@ function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTi
 /* ---------- Llamada a Claude ---------- */
 class ClaudeError extends Error{constructor(code,msg){super(msg);this.code=code}}
 async function aBase64(blob){const b=new Uint8Array(await blob.arrayBuffer());let s="";for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s)}
-async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=false}={}){
+/* Salidas estructuradas: la API garantiza un JSON válido con esta forma (sin coste extra) */
+const str={type:"string"};
+const LOOK_SCHEMA={type:"object",properties:{titulo:str,piezas:{type:"array",items:str},nota:str},required:["titulo","piezas","nota"],additionalProperties:false};
+const SCH_LOOKS={type:"object",properties:{looks:{type:"array",items:LOOK_SCHEMA}},required:["looks"],additionalProperties:false};
+const SCH_SEMANA={type:"object",properties:{dias:{type:"array",items:{type:"object",properties:{fecha:str,titulo:str,piezas:{type:"array",items:str},nota:str},required:["fecha","titulo","piezas","nota"],additionalProperties:false}}},required:["dias"],additionalProperties:false};
+const SCH_ETIQUETA={type:"object",properties:Object.fromEntries(["nombre","categoria","marca","color","tono","estilo","estacion","descripcion"].map(k=>[k,str])),required:["nombre","categoria","marca","color","tono","estilo","estacion","descripcion"],additionalProperties:false};
+async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=false,formato=null}={}){
+  if(formato&&ls.get("kc.sinFormato","")===S.modelo) formato=null;
+  const oc=Object.assign({},pensar?{effort:"medium"}:{},formato?{format:{type:"json_schema",schema:formato}}:{});
   if(!S.key) throw new ClaudeError("sin_clave");
   const content=[];
   if(imagen) content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:await aBase64(imagen)}});
@@ -480,7 +488,8 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=fal
       "content-type":"application/json","x-api-key":S.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
       body:JSON.stringify(Object.assign({model:S.modelo,max_tokens:maxTokens,messages:[{role:"user",content}]},
         system?{system}:{},
-        pensar?{thinking:{type:"adaptive"},output_config:{effort:"medium"},max_tokens:maxTokens+6000}:{}))});
+        pensar?{thinking:{type:"adaptive"},max_tokens:maxTokens+12000}:{},
+        Object.keys(oc).length?{output_config:oc}:{}))});
   }catch(e){ if(e.name==="AbortError") throw new ClaudeError("cancelado"); throw new ClaudeError("red"); }
   let data=null; try{data=await r.json()}catch{}
   if(!r.ok){
@@ -488,13 +497,15 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=fal
     if(r.status===401) throw new ClaudeError("clave");
     if(r.status===403) throw new ClaudeError("permiso");
     if(r.status===429) throw new ClaudeError("limite");
-    if(pensar&&r.status===400&&/thinking|effort|output_config/i.test(m)){ ls.set("kc.sinPensar",S.modelo); return pedirClaude(texto,{imagen,signal,maxTokens,system,pensar:false}); }
+    if(formato&&r.status===400&&/format|schema/i.test(m)){ ls.set("kc.sinFormato",S.modelo); return pedirClaude(texto,{imagen,signal,maxTokens,system,pensar,formato:null}); }
+    if(pensar&&r.status===400&&/thinking|effort/i.test(m)){ ls.set("kc.sinPensar",S.modelo); return pedirClaude(texto,{imagen,signal,maxTokens,system,pensar:false,formato}); }
     if(r.status===529||r.status>=500) throw new ClaudeError("saturado");
     if(/credit|balance|billing/i.test(m)) throw new ClaudeError("saldo");
     if(/model/i.test(m)) throw new ClaudeError("modelo",m);
     throw new ClaudeError("otro",m);
   }
   anotarUso(data.usage);
+  if(formato&&data.stop_reason==="max_tokens") throw new ClaudeError("corto");
   return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
 }
 /* Gasto estimado: tokens reales que devuelve la API × precio del modelo ($ por millón) */
@@ -525,6 +536,7 @@ function errMsg(e){
     case "saturado": return "Claude está saturado ahora mismo. Prueba en un momento.";
     case "modelo": return "El modelo elegido no está disponible. Cambia de modelo en Ajustes.";
     case "json": return "La respuesta llegó incompleta. Prueba otra vez.";
+    case "corto": return "La estilista se ha quedado sin espacio para responder. Prueba otra vez.";
     case "red": return "Sin conexión con Claude. Revisa tu internet.";
     default: return "Algo ha fallado al hablar con Claude."+(e&&e.message?" ("+e.message.slice(0,120)+")":"");
   }
@@ -785,7 +797,7 @@ evitar.length?`Deben ser distintos de los looks que acaba de ver (${evitar.join(
 `\nPrendas (id|categoría|prenda|color|detalle|estilo):\n${sel.texto}`,
 `\nFormato: {"looks":[{"titulo":"nombre corto y con gracia para el look","piezas":["p07","p14"],"nota":"una o dos frases: qué armonía de color usa (p. ej. base marino, acento cobre), por qué funciona y un consejo práctico"}]}`]);
   try{
-    const r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:2000,system:ESTILISTA,pensar:pensar()});
+    const r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:2000,system:ESTILISTA,pensar:pensar(),formato:SCH_LOOKS});
     const arr=Array.isArray(r&&r.looks)?r.looks:(r&&r.piezas?[r]:[]), opciones=[];
     for(const x of arr){
       const piezas=limpiaPiezas(x&&x.piezas); if(pa&&!piezas.includes(pa.id)) piezas.unshift(pa.id);
@@ -851,7 +863,7 @@ async function etiquetar(blob){
   const r=await pedirJSON(`La foto muestra una prenda, unos zapatos, un bolso o un complemento de un armario personal. Etiquétala en español.
 Formato:
 {"nombre":"nombre corto y descriptivo, p. ej. Blazer rosa palo","categoria":"abrigo | arriba | abajo | zapatos | bolso | accesorio | joya","marca":"solo si se lee en una etiqueta, si no vacío","color":"color o colores principales","tono":"#hex del color dominante, o leopardo / cebra / dorado si es eso","estilo":"todos los que encajen, separados por comas, de: casual, casual chic, smart casual, formal, fiesta, deportivo","estacion":"todas las que encajen, separadas por comas, de: entretiempo, invierno, verano; o solo todo el año si sirve siempre","descripcion":"una frase corta: tejido, corte, cuello, manga, estampado o detalles"}
-(abrigo = chaquetas, blazers y abrigos; abajo = pantalones, faldas y vestidos; accesorio = pañuelos, fulares y cinturones; joya = collares, pendientes, pulseras.)`,{imagen:blob,maxTokens:600});
+(abrigo = chaquetas, blazers y abrigos; abajo = pantalones, faldas y vestidos; accesorio = pañuelos, fulares y cinturones; joya = collares, pendientes, pulseras.)`,{imagen:blob,maxTokens:600,formato:SCH_ETIQUETA});
   const o={}; ["nombre","categoria","marca","color","tono","estilo","estacion","descripcion"].forEach(k=>o[k]=String(r&&r[k]||"").slice(0,300));
   if(!CATN[o.categoria]) o.categoria="arriba";
   return o;
@@ -965,7 +977,7 @@ fijos.length?`Estos días ya están decididos, tenlos en cuenta para no repetir:
 `\nPrendas (id|categoría|prenda|color|detalle|estilo):\n${sel.texto}`,
 `\nFormato: {"dias":[{"fecha":"AAAA-MM-DD","titulo":"nombre corto del look","piezas":["p07","p14"],"nota":"una frase: armonía de color y por qué funciona"}]}`]);
   try{
-    const r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:3000,system:ESTILISTA,pensar:pensar()});
+    const r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:3000,system:ESTILISTA,pensar:pensar(),formato:SCH_SEMANA});
     let n=0;
     for(const x of (Array.isArray(r&&r.dias)?r.dias:[])){
       const f=String(x&&x.fecha||""); if(!dias.includes(f)) continue;
