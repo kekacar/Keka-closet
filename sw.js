@@ -1,6 +1,6 @@
 // Kekas Closet: guarda la app para que abra sin conexión.
 // Sube la versión cada vez que cambies index.html para que el móvil coja la nueva.
-const VERSION = "kekas-v19";
+const VERSION = "kekas-v20";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 
 self.addEventListener("install", e => {

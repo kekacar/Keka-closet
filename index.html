@@ -504,7 +504,11 @@ const SCH_COMPLETAR={type:"object",properties:{prendas:{type:"array",items:{type
 const TXT_TRES=`"abrigo":"fino, medio o grueso según lo que abriga (vacío en bolsos, cinturones y joyas)","formalidad":"1 a 5: 1 muy informal (deporte, casa), 2 informal, 3 arreglada informal, 4 arreglada (oficina formal), 5 de evento","silueta":"solo en ropa, una o dos de: ceñida, recta, ancha, corta, larga, separadas por comas; vacío en lo demás"`;
 async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=false,formato=null}={}){
   if(formato&&ls.get("kc.sinFormato","")===S.modelo) formato=null;
-  const oc=Object.assign({},pensar?{effort:"low"}:{},formato?{format:{type:"json_schema",schema:formato}}:{});
+  /* v20: el pensamiento se controla SIEMPRE. Sin "Pensar más", Sonnet 5.5 pensaba por su cuenta y se comía todo el espacio.
+     Sin pensar: Sonnet 5.5 → between_tools (lo mínimo), Haiku 5.5 → disabled. Esfuerzo bajo siempre. */
+  const ctrl=ls.get("kc.sinCtrl","")!==S.modelo;
+  const think=pensar?{type:"adaptive"}:ctrl?(/haiku/.test(S.modelo)?{type:"disabled"}:{type:"between_tools"}):null;
+  const oc=Object.assign({},ctrl||pensar?{effort:"low"}:{},formato?{format:{type:"json_schema",schema:formato}}:{});
   if(!S.key) throw new ClaudeError("sin_clave");
   const content=[];
   if(imagen) content.push({type:"image",source:{type:"base64",media_type:"image/jpeg",data:await aBase64(imagen)}});
@@ -515,7 +519,8 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=fal
       "content-type":"application/json","x-api-key":S.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
       body:JSON.stringify(Object.assign({model:S.modelo,max_tokens:maxTokens,messages:[{role:"user",content}]},
         system?{system}:{},
-        pensar?{thinking:{type:"adaptive"},max_tokens:maxTokens+6000}:{},
+        think?{thinking:think}:{},
+        {max_tokens:maxTokens+(pensar?6000:3000)}, // margen de sobra: solo se paga lo que se usa
         Object.keys(oc).length?{output_config:oc}:{}))});
   }catch(e){ if(e.name==="AbortError") throw new ClaudeError("cancelado"); throw new ClaudeError("red"); }
   let data=null; try{data=await r.json()}catch{}
@@ -526,6 +531,7 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=fal
     if(r.status===429) throw new ClaudeError("limite");
     if(formato&&r.status===400&&/format|schema/i.test(m)){ ls.set("kc.sinFormato",S.modelo); return pedirClaude(texto,{imagen,signal,maxTokens,system,pensar,formato:null}); }
     if(pensar&&r.status===400&&/thinking|effort/i.test(m)){ ls.set("kc.sinPensar",S.modelo); return pedirClaude(texto,{imagen,signal,maxTokens,system,pensar:false,formato}); }
+    if(!pensar&&ctrl&&r.status===400&&/thinking|effort|between_tools|disabled/i.test(m)){ ls.set("kc.sinCtrl",S.modelo); return pedirClaude(texto,{imagen,signal,maxTokens,system,pensar:false,formato}); }
     if(r.status===529||r.status>=500) throw new ClaudeError("saturado");
     if(/credit|balance|billing/i.test(m)) throw new ClaudeError("saldo");
     if(/model/i.test(m)) throw new ClaudeError("modelo",m);
@@ -533,7 +539,7 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=fal
   }
   anotarUso(data.usage);
   const txt=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
-  S.ultima=`Versión ${APP_V} · ${S.modelo} · motivo de parada: ${data.stop_reason||"?"} · formato JSON: ${formato?"sí":"no"} · pensar: ${pensar?"sí":"no"} · tokens de salida: ${(data.usage||{}).output_tokens??"?"} (pensando: ${((data.usage||{}).output_tokens_details||{}).thinking_tokens??"?"})\n${txt.slice(0,700)||"(sin texto)"}`;
+  S.ultima=`Versión ${APP_V} · ${S.modelo} · motivo de parada: ${data.stop_reason||"?"} · formato JSON: ${formato?"sí":"no"} · pensar: ${pensar?"sí":think?think.type:"sin control"} · tokens de salida: ${(data.usage||{}).output_tokens??"?"} (pensando: ${((data.usage||{}).output_tokens_details||{}).thinking_tokens??"?"})\n${txt.slice(0,700)||"(sin texto)"}`;
   if(data.stop_reason==="max_tokens"){
     if(pensar) return pedirClaude(texto,{imagen,signal,maxTokens,system,pensar:false,formato}); // se pasó pensando: repite sin pensar (barato)
     if(formato) throw new ClaudeError("corto");
@@ -542,7 +548,7 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=fal
   return txt;
 }
 /* Gasto estimado: tokens reales que devuelve la API × precio del modelo ($ por millón) */
-const APP_V="v19";
+const APP_V="v20";
 const PRECIO={"claude-sonnet-5-5":[2,10],"claude-haiku-5-5":[0.1,0.5]};
 const mesActual=()=>ymd(new Date()).slice(0,7);
 function anotarUso(u){
@@ -800,12 +806,17 @@ function estacionesValidas(tmin,tmax){
   return s;
 }
 function ultimoUso(){const u=new Map();S.planes.forEach(pl=>(pl.piezas||[]).forEach(id=>{if(!u.has(id)||u.get(id)<pl.fecha)u.set(id,pl.fecha)}));return u}
-function seleccion(ocasiones,{fechas=[],excluir=[],vetadas=[],tmin=S.tmin,tmax=S.tmax,lluvia=null,ancla=null}={}){
+/* Tipo de parte de abajo por el nombre: para no quedarse nunca sin pantalones (o sin faldas) en la lista */
+const tipoAbajo=p=>{const t=(p.nombre+" "+(p.descripcion||"")).toLowerCase();return /vestido|\bmono\b/.test(t)?"vestido":/falda/.test(t)?"falda":"pantalon"};
+function vetosNota(nota){const n=String(nota||"").toLowerCase(), no=w=>new RegExp("(sin|nada de|ni|no (quiero|me apetece|llevar)[^,.;]*)\\s+(una?\\s+)?"+w).test(n);
+  return new Set([no("falda")||no("minifalda")?"falda":"",no("vestido")?"vestido":"",no("pantal")?"pantalon":"",no("vaquer")?"vaquero":""].filter(Boolean));}
+function seleccion(ocasiones,{fechas=[],excluir=[],vetadas=[],tmin=S.tmin,tmax=S.tmax,lluvia=null,ancla=null,nota=""}={}){
+  const vetoTipo=vetosNota(nota);
   const est=estacionesValidas(tmin,tmax), veto=new Set(vetadas), estilos=new Set(ocasiones.flatMap(o=>ESTILO_OCAS[o]||[]));
   const llevadas=new Set(excluir); fechas.forEach(f=>recientes(f).forEach(id=>llevadas.add(id)));
   const uso=ultimoUso(), factor=Math.min(2,1+(ocasiones.length-1)*.25), out=[];
   for(const [cat] of CATS){
-    const todas=ordenadas().filter(p=>p.categoria===cat&&!veto.has(p.id)&&p.id!==ancla);
+    const todas=ordenadas().filter(p=>p.categoria===cat&&!veto.has(p.id)&&p.id!==ancla&&!(cat==="abajo"&&(vetoTipo.has(tipoAbajo(p))||(vetoTipo.has("vaquero")&&/vaquer|jean|denim/i.test(p.nombre)))));
     const media=(tmin+tmax)/2;
     const okAbr=p=>!(media>=22&&p.abrigo==="grueso"&&cat!=="zapatos")&&!(media<8&&cat==="abrigo"&&p.abrigo==="fino"); // v17: nada grueso con calor, ni chaquetas finas con mucho frío
     const okEst=p=>{const l=lista(p.estacion);return (!l.length||l.some(x=>est.has(x)))&&okAbr(p)};
@@ -818,6 +829,11 @@ function seleccion(ocasiones,{fechas=[],excluir=[],vetadas=[],tmin=S.tmin,tmax=S
     if(cat==="zapatos"&&lluvia!=null&&lluvia>=50){ // con lluvia, fuera ante, terciopelo y bailarinas
       const s=c.filter(sinLluviaDelicado), s2=todas.filter(sinLluviaDelicado);
       c=s.length>=2?s:s2.length?s2:c; }
+    if(cat==="abajo"){ // que nunca falte ningún tipo permitido: si no queda ninguno de un tipo, se añaden hasta 2
+      for(const tp of ["pantalon","falda","vestido"]){
+        if(vetoTipo.has(tp)||c.some(p=>tipoAbajo(p)===tp)) continue;
+        const d=todas.filter(p=>tipoAbajo(p)===tp), extra=[d.filter(p=>okEst(p)&&okUso(p)),d.filter(p=>okAbr(p)&&okUso(p)),d.filter(okUso),d].find(x=>x.length)||[];
+        c=c.concat(extra.slice(0,2)); } }
     const tope=Math.round(TOPE[cat]*factor);
     if(c.length>tope) c=c.map(p=>({p,k:(uso.get(p.id)||"0000")+Math.random()})).sort((a,b)=>a.k<b.k?-1:1).slice(0,tope).map(x=>x.p); // primero lo menos usado
     out.push(...c);
@@ -845,7 +861,7 @@ Cómo trabajas:
 - Adecuas el nivel de formalidad exactamente a la ocasión y la ropa a la temperatura y a la lluvia, con capas cuando hay mucha diferencia entre mínima y máxima.
 - Menos es más: como máximo una pieza protagonista por look. Los estampados animales (leopardo, cebra) son un recurso puntual: úsalos solo cuando de verdad eleven el look, nunca por costumbre; la mayoría de looks no los llevan.
 - Complementos y joyas solo si suman, uno o dos como mucho.
-- Un look completo lleva parte de arriba y de abajo (o un vestido), zapatos, y chaqueta o abrigo si el tiempo lo pide; bolso cuando tenga sentido.
+- Un look completo lleva SIEMPRE parte de arriba y de abajo (o un vestido) y zapatos; además chaqueta o abrigo si el tiempo lo pide, y bolso cuando tenga sentido. Nunca propones un look al que le falte alguna de esas piezas.
 - Conoces a tu clienta: tienes muy en cuenta lo que le ha gustado y lo que no le convenció otras veces.
 - Solo usas prendas de la lista que te dan, por su id.
 - Tus notas son breves y van al grano: dos o tres frases cortas, unas 50 palabras como mucho.
@@ -863,13 +879,18 @@ const juntar=arr=>arr.filter(Boolean).join("\n");
 /* Acierto: cuántas peticiones de look acaban en "Dejar preparado" y cuántas a la primera (sin pedir otro) */
 const ACI_DEF=()=>({desde:ymd(new Date()),rondas:0,preparadas:0,primera:0});
 function acierto(fn){const a=ls.get("kc.acierto",null)||ACI_DEF();fn(a);ls.set("kc.acierto",a)}
+function faltaEnLook(ids){
+  const ps=ids.map(id=>S.prendas.get(id)).filter(Boolean), hay=c=>ps.some(p=>p.categoria===c), vestido=ps.some(p=>p.categoria==="abajo"&&tipoAbajo(p)==="vestido");
+  const f=[]; if(!vestido){ if(!hay("arriba")) f.push("parte de arriba"); if(!hay("abajo")) f.push("parte de abajo (pantalón o falda)"); } if(!hay("zapatos")) f.push("zapatos");
+  return f;
+}
 async function pedirLook(f,ocasion,{evitar=[],vetadas=[],motivo="",ancla=null,intentos=1}={}){
   if(S.busy) return;
   const pa=ancla?S.prendas.get(ancla):null, ctl=new AbortController();
   S.busy={fecha:f,ctl,ancla:pa?pa.nombre.toLowerCase():""}; delete S.err[f]; delete S.errDet[f]; S.fb={razones:[],prendas:[]}; S.fbOpen=false; renderLook();
   const t=tempDe(f);
   const aj=ajusteT(); // friolera: se eligen prendas como si hiciera 2 °C menos (calurosa: 2 °C más)
-  const sel=seleccion([ocasion],{fechas:[f],excluir:evitar,vetadas,tmin:t.min+aj,tmax:t.max+aj,lluvia:t.lluvia,ancla:pa?pa.id:null});
+  const sel=seleccion([ocasion],{fechas:[f],excluir:evitar,vetadas,tmin:t.min+aj,tmax:t.max+aj,lluvia:t.lluvia,ancla:pa?pa.id:null,nota:ls.get("kc.notaHoy","")});
   const prompt=juntar([
 `Propón UN look completo para el ${largo(f)} usando SOLO prendas de esta lista, ya preseleccionada para la ocasión y el tiempo. Antes de decidir, valora varias combinaciones y quédate con la mejor.`,
 `Ocasión: ${ocasion} (formalidad ideal ${FORM_OCAS[ocasion]||"3"}). ${tiempoTxt(t)}`, termoTxt(),
@@ -882,7 +903,13 @@ evitar.length?`Debe ser claramente distinto del look que acaba de ver (${evitar.
 `\nPrendas (id|categoría|prenda|color|detalle|estilo|abrigo|formalidad 1-5|silueta):\n${sel.texto}`,
 `\nFormato: {"titulo":"nombre corto y con gracia para el look","piezas":["p07","p14"],"nota":"dos o tres frases cortas (unas 50 palabras como mucho): qué armonía de color usa (p. ej. base marino, acento cobre), por qué funciona y un consejo práctico"}`]);
   try{
-    const r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:1200,system:ESTILISTA,pensar:pensar(),formato:LOOK_SCHEMA});
+    let r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:1200,system:ESTILISTA,pensar:pensar(),formato:LOOK_SCHEMA});
+    let falta=faltaEnLook(limpiaPiezas(r&&r.piezas).concat(pa?[pa.id]:[]));
+    if(falta.length){ // segunda y última oportunidad (~1 céntimo, solo cuando pasa)
+      r=await pedirJSON(prompt+`\n\nIMPORTANTE: tu propuesta anterior (${limpiaPiezas(r&&r.piezas).join(", ")}) no tenía ${falta.join(" ni ")}. Un look completo lleva parte de arriba y de abajo (o un vestido) y zapatos. Elige de la lista lo que mejor encaje aunque no sea perfecto.`,{signal:ctl.signal,maxTokens:1200,system:ESTILISTA,pensar:false,formato:LOOK_SCHEMA});
+      falta=faltaEnLook(limpiaPiezas(r&&r.piezas).concat(pa?[pa.id]:[]));
+      if(falta.length) throw new ClaudeError("incompleto",falta.join(" ni "));
+    }
     const arr=r&&r.piezas?[r]:(Array.isArray(r&&r.looks)?r.looks:[]), opciones=[];
     for(const x of arr){
       const piezas=limpiaPiezas(x&&x.piezas); if(pa&&!piezas.includes(pa.id)) piezas.unshift(pa.id);
@@ -893,7 +920,7 @@ evitar.length?`Debe ser claramente distinto del look que acaba de ver (${evitar.
     if(!opciones.length) throw new ClaudeError("encaje");
     S.propuesta[f]={opciones,i:0,ancla:pa?pa.id:null,intentos};
     if(intentos===1) acierto(a=>a.rondas++);
-  }catch(e){ const m=e.code==="encaje"?"La propuesta no encajaba con tu armario. Prueba otra vez.":errMsg(e); if(m) S.err[f]=m;
+  }catch(e){ const m=e.code==="encaje"?"La propuesta no encajaba con tu armario. Prueba otra vez.":e.code==="incompleto"?`La estilista no ha encontrado un look completo (le falta ${e.message}). Revisa la nota “Para la estilista”: puede que pida algo imposible con lo que hay disponible.`:errMsg(e); if(m) S.err[f]=m;
     S.errDet[f]=["json","vacio","corto","encaje","otro","modelo","saturado","limite"].includes(e.code)?(S.ultima||"")+(e.code==="otro"||e.code==="modelo"?"\nError: "+(e.message||""):""):""; }
   finally{ S.busy=null; renderLook(); }
 }
@@ -1080,7 +1107,7 @@ async function planificar(dias){
   const fijos=semana().filter(f=>S.planes.has(f)&&!dias.includes(f)).map(f=>`${f}: ${(S.planes.get(f).piezas||[]).join(", ")}`);
   const ocs=[...new Set(dias.map(ocasDia))], ts=dias.map(tempDe);
   const aj=ajusteT();
-  const sel=seleccion(ocs,{tmin:Math.min(...ts.map(t=>t.min))+aj,tmax:Math.max(...ts.map(t=>t.max))+aj});
+  const sel=seleccion(ocs,{tmin:Math.min(...ts.map(t=>t.min))+aj,tmax:Math.max(...ts.map(t=>t.max))+aj,nota:ls.get("kc.notaSem","")});
   const prompt=juntar([
 `Planifica un look por día usando SOLO prendas de esta lista, ya preseleccionada para las ocasiones y el tiempo.
 Días a planificar:
@@ -1096,7 +1123,7 @@ fijos.length?`Estos días ya están decididos, tenlos en cuenta para no repetir:
     let n=0;
     for(const x of (Array.isArray(r&&r.dias)?r.dias:[])){
       const f=String(x&&x.fecha||""); if(!dias.includes(f)) continue;
-      const piezas=limpiaPiezas(x.piezas); if(piezas.length<2) continue;
+      const piezas=limpiaPiezas(x.piezas); if(piezas.length<2||faltaEnLook(piezas).length) continue; // incompleto: ese día se queda sin planificar
       await guardar("planes",{id:f,fecha:f,ocasion:ocasDia(f),titulo:String(x.titulo||"Look").slice(0,80),piezas,nota:recortaNota(x.nota)}); n++;
     }
     if(!n) $("#semErr").innerHTML=`<p class="err">La propuesta no encajaba con tu armario. Prueba otra vez.</p>`;
