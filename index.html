@@ -1,4 +1,9 @@
 <!doctype html>
+<!--
+  Keka’s Closet
+  © 2026 kekacar. Todos los derechos reservados.
+  Prohibida la copia, modificación o distribución, total o parcial, sin permiso expreso de la autora.
+-->
 <html lang="es">
 <head>
 <meta charset="utf-8">
@@ -352,11 +357,6 @@ details.fb .lbl{display:block;font-size:12px;color:var(--muted);margin-top:10px}
         <label class="btn sm" for="importar">Restaurar copia</label><input id="importar" type="file" accept="application/json,.json" hidden></div>
       <p class="muted" id="espacio" style="font-size:13px"></p>
     </div>
-    <div class="card" id="catalogoCard">
-      <h3 class="sub">Mi catálogo inicial</h3>
-      <p class="muted" style="font-size:14px">Carga tus 45 prendas ya descritas (sin foto). Luego puedes ponerles foto desde su ficha.</p>
-      <div class="row"><button class="btn sm gold" type="button" data-act="cargarCatalogo">Cargar 45 prendas</button></div>
-    </div>
     <div class="card" id="completarCard" hidden>
       <h3 class="sub">Completar tus prendas</h3>
       <p class="muted" style="font-size:14px" id="completarTxt"></p>
@@ -368,6 +368,7 @@ details.fb .lbl{display:block;font-size:12px;color:var(--muted);margin-top:10px}
       <div class="row"><button class="btn sm primary" type="button" data-act="instalar">Instalar app</button></div>
     </div>
     <p class="count" id="appVersion" style="text-align:center"></p>
+    <p class="count" style="text-align:center;margin-top:-10px">© 2026 kekacar. Todos los derechos reservados.</p>
   </section>
 </main>
 
@@ -385,55 +386,7 @@ details.fb .lbl{display:block;font-size:12px;color:var(--muted);margin-top:10px}
 
 <script>
 (() => {
-/* ---------- Catálogo inicial ---------- */
-// [n, nombre, categoría, marca, color, tono, estilo, estación, detalles]
-const CATALOGO=[
-[1,"Blazer rosa palo","abrigo","ONLY","rosa palo","#d9a7a3","smart casual","entretiempo","Jaspeado, solapa chal, manga 3/4 fruncida","medio","3","recta"],
-[2,"Blazer crudo","abrigo","Pieces","crudo","#ece3d0","smart casual","entretiempo","Sin solapa, cuello redondo, corto, puños doblados","medio","3","corta"],
-[3,"Chaqueta verde petróleo","abrigo","","verde petróleo","#1f5c5c","casual chic","entretiempo","Efecto ante, corte cascada asimétrico, manga larga, cordón a juego para llevarla atada","medio","2","ancha"],
-[5,"Blazer negro","abrigo","Pieces","negro","#1b1b1d","formal","entretiempo","Solapa chal, manga 3/4 fruncida. Formal o smart","medio","4","recta"],
-[21,"Cazadora de cuero negra","abrigo","","negro","#222222","casual chic","invierno","Cuello de pelo sintético, forro acolchado, bolsillos con solapa","grueso","2","corta"],
-[22,"Plumífero ligero de corazones","abrigo","Uniqlo Ultra Light","granate, marino y crudo","#7a2232","casual","entretiempo","Estampado de corazones granate, marino y crudo","medio","2","recta"],
-[23,"Abrigo acolchado largo negro","abrigo","","negro","#161616","casual","invierno","Largo, acolchado, con capucha","grueso","2","larga"],
-[4,"Camiseta blanca de estrellas","arriba","","blanco con leopardo dorado","#f7f5f0","casual","todo el año","Tres estrellas de leopardo dorado","fino","2","recta"],
-[10,"Jersey de rayas","arriba","Cortefiel","crudo, beige y camel","#c9a679","casual chic","invierno","Rayas crudo, beige y camel con hilo dorado","grueso","2","recta"],
-[11,"Camisa floral de gasa","arriba","","crudo con flores rosa, azul y amarillo","#efe6d4","casual chic","entretiempo","Gasa, cuello bebé, hilo dorado","fino","3","ancha"],
-[12,"Blusa marino con volantes","arriba","","azul marino","#1f2a4d","smart casual","entretiempo","Estampado azul claro, semitransparente, puños elásticos","fino","3","ancha"],
-[13,"Camisa satinada de grullas","arriba","Garcia Jeans","azul marino","#18233f","fiesta","todo el año","Grullas y flores, rayas lúrex. Talla S. Para fiesta o noche","fino","4","recta"],
-[14,"Top gris con lazo","arriba","Zara","gris pizarra","#5d6670","smart casual","todo el año","Punto acanalado, cuello cuadrado con lazo, manga corta abullonada","fino","3","ceñida"],
-[15,"Top negro con cristales","arriba","Zara","negro","#141414","fiesta","todo el año","Corto, cuello redondo en canalé, cristales","fino","4","ceñida, corta"],
-[16,"Camiseta marino de strass","arriba","Zara","azul marino","#1c2747","fiesta","verano","Sin mangas, malla con strass plateados","fino","4","recta"],
-[17,"Camiseta blanca de rosas","arriba","","blanco","#f6f4ef","casual chic","todo el año","Tres rosas de tela en el hombro","fino","2","recta"],
-[18,"Camiseta “motivos para bailar!”","arriba","","crudo","#ebe2cf","casual","entretiempo","Cuello barco con botones, manga 3/4. Talla S","fino","2","recta"],
-[19,"Camiseta beige cuello pico","arriba","","beige","#d6c4a5","casual","todo el año","Logo metálico, cordón ajustable en el bajo","fino","2","recta"],
-[6,"Minifalda vaquera negra","abajo","","negro","#1e1e1e","casual chic","todo el año","Con strass plateados","medio","2","ceñida, corta"],
-[7,"Pantalón negro de vestir","abajo","","negro","#181818","formal","todo el año","Tiro alto, recto, tobillero","medio","4","recta"],
-[8,"Vaquero azul oscuro","abajo","Levi's 724","azul oscuro","#26385e","casual","todo el año","Tiro alto, recto. Talla 27","medio","2","recta"],
-[9,"Vaquero azul claro","abajo","","azul claro","#8eaacb","casual","todo el año","Pitillo desgastado, tobillero","medio","2","ceñida"],
-[24,"Falda lápiz efecto piel","abajo","","negro","#121212","smart casual","invierno","Midi, abertura trasera","medio","4","ceñida, larga"],
-[25,"Minifalda de leopardo","abajo","","leopardo rojo y negro","leopardo","casual chic","invierno","Tipo borreguito, leopardo rojo y negro","grueso","2","corta"],
-[26,"Vestido negro sin mangas","abajo","","negro","#151515","formal","todo el año","Vestido. Cuello alto, liso, ligeramente evasé","fino","4","recta"],
-[27,"Zapatillas de leopardo","zapatos","Adidas","leopardo","leopardo","casual","todo el año","Cordones naranjas","medio","1",""],
-[28,"Botines marino de estrellas","zapatos","","azul marino","#22305a","casual chic","entretiempo","Ante, estrellas doradas bordadas","medio","2",""],
-[29,"Bailarinas de lunares","zapatos","Zara","crudo con lunares negros","#ece4d2","casual chic","verano","Con lacito","fino","3",""],
-[38,"Botines de terciopelo gris","zapatos","","gris","#8a8a92","fiesta","invierno","Con cristales, tacón ancho medio","medio","4",""],
-[39,"Botines negros de piel","zapatos","Callaghan","negro","#1c1a19","smart casual","invierno","Tacón ancho bajo, anillas doradas con lazo marrón","grueso","3",""],
-[40,"Mary Jane de ante gris","zapatos","","gris marengo","#4a4c52","smart casual","entretiempo","Tacón ancho efecto espejo plateado","fino","4",""],
-[41,"Botines de ante granate","zapatos","","granate","#6e1f2a","smart casual","entretiempo","Punta fina, tacón kitten","medio","4",""],
-[30,"Mochila negra de piel","bolso","Coccinelle","negro","#1a1a1a","smart casual","todo el año","Piel","","3",""],
-[31,"Bolso acolchado con cadena","bolso","","negro","#171717","fiesta","todo el año","Acolchado, cadena dorada","","4",""],
-[32,"Bolso de mano de abalorios","bolso","","morado, crudo, negro, dorado y plateado","#5b3a6e","fiesta","todo el año","Abalorios","","5",""],
-[33,"Fular de seda cobre","accesorio","","marrón, cobre y azul violáceo","#9a5a32","casual chic","entretiempo","Seda en bloques de color, con flecos","fino","3",""],
-[34,"Pañuelo de cachemir","accesorio","","multicolor, borde turquesa","#2f9a9a","casual chic","entretiempo","Cuadrado, multicolor con borde turquesa","medio","2",""],
-[35,"Fular gris de seda","accesorio","","gris claro","#c9cbcf","smart casual","entretiempo","Seda con flecos","fino","3",""],
-[20,"Cinturón de leopardo","accesorio","","leopardo","leopardo","casual chic","todo el año","Hebilla dorada ovalada","","2",""],
-[36,"Cinturón ancho camel","accesorio","","camel","#b5834e","smart casual","todo el año","Elástico, hebilla dorada de alas","","3",""],
-[37,"Cinturón de cebra","accesorio","","cebra","cebra","casual chic","todo el año","Hebilla plateada","","2",""],
-[42,"Colgante de gato de tres ojos","joya","","dorado","dorado","casual chic","todo el año","Dorado, gotas de nácar y cristal","","3",""],
-[43,"Collar de gato negro","joya","","negro","#1a1a1a","casual","todo el año","Cordón negro con gato negro y cristal","","2",""],
-[44,"Brazalete dorado","joya","","dorado","dorado","smart casual","todo el año","Ancho, latón envejecido","","4",""],
-[45,"Pendientes de gatos negros","joya","","negro con ojos amarillos","#1a1a1a","casual","todo el año","Gatos negros con ojos amarillos","","2",""]
-];
+const CATALOGO=[]; // v21: el catálogo de prendas ya no va en el código (el repositorio es público). Tus prendas están en el móvil y en la copia de seguridad.
 
 const CATS=[["abrigo","Chaquetas y abrigos"],["arriba","Parte de arriba"],["abajo","Abajo y vestidos"],["zapatos","Zapatos"],["bolso","Bolsos"],["accesorio","Pañuelos y cinturones"],["joya","Joyas"]];
 const CATN=Object.fromEntries(CATS), CATORD=Object.fromEntries(CATS.map((c,i)=>[c[0],i]));
@@ -548,7 +501,7 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=fal
   return txt;
 }
 /* Gasto estimado: tokens reales que devuelve la API × precio del modelo ($ por millón) */
-const APP_V="v20";
+const APP_V="v22";
 const PRECIO={"claude-sonnet-5-5":[2,10],"claude-haiku-5-5":[0.1,0.5]};
 const mesActual=()=>ymd(new Date()).slice(0,7);
 function anotarUso(u){
@@ -785,8 +738,8 @@ function renderLook(){
   } else if(!S.loaded){
     html+=`<div class="card"><span class="muted">Abriendo tu armario…</span></div>`;
   } else if(!S.prendas.size){
-    html+=`<div class="card empty"><b>Tu armario está vacío</b><span class="muted">Carga tus 45 prendas ya descritas o añade fotos nuevas.</span>
-      <div class="row" style="justify-content:center"><button class="btn gold" type="button" data-act="cargarCatalogo">Cargar mis 45 prendas</button><button class="btn" type="button" data-act="tab" data-v="anadir">Añadir fotos</button></div></div>`;
+    html+=`<div class="card empty"><b>Tu armario está vacío</b><span class="muted">Añade fotos de tus prendas o restaura tu copia de seguridad en Ajustes.</span>
+      <div class="row" style="justify-content:center"><button class="btn gold" type="button" data-act="tab" data-v="anadir">Añadir fotos</button><button class="btn" type="button" data-act="tab" data-v="ajustes">Restaurar copia</button></div></div>`;
   } else {
     html+=`<div class="card empty"><span class="muted">${S.prendas.size} prendas listas para combinar</span>
       <button class="btn gold" type="button" data-act="sugerir" ${hayClave()?"":"disabled"}>Sugerir look para ${cuando}</button>
@@ -938,7 +891,7 @@ function renderGrid(){
   const q=S.q.trim().toLowerCase(), g=$("#grid");
   const list=ordenadas().filter(p=>(S.cat==="todo"||p.categoria===S.cat)&&(!q||[p.nombre,p.marca,p.color,p.descripcion,p.estilo,p.estacion,"nº "+p.n].join(" ").toLowerCase().includes(q)));
   if(!S.loaded){g.innerHTML=`<p class="muted">Abriendo…</p>`;return}
-  if(!S.prendas.size){g.innerHTML=`<div class="card empty"><b>Aún no hay prendas</b><div class="row" style="justify-content:center"><button class="btn gold" type="button" data-act="cargarCatalogo">Cargar mis 45 prendas</button><button class="btn" type="button" data-act="tab" data-v="anadir">Añadir fotos</button></div></div>`;return}
+  if(!S.prendas.size){g.innerHTML=`<div class="card empty"><b>Aún no hay prendas</b><div class="row" style="justify-content:center"><button class="btn gold" type="button" data-act="tab" data-v="anadir">Añadir fotos</button><button class="btn" type="button" data-act="tab" data-v="ajustes">Restaurar copia</button></div></div>`;return}
   if(!list.length){g.innerHTML=`<p class="muted">Nada coincide con “${esc(S.q)}”.</p>`;return}
   g.innerHTML=`<div class="grid">${list.map(p=>`<button type="button" class="tile" data-act="ficha" data-id="${esc(p.id)}"><span class="thumb">${visual(p)}<span class="tag">Nº ${p.n}</span></span><span class="nm">${esc(p.nombre)}</span></button>`).join("")}</div>`;
 }
@@ -1156,7 +1109,6 @@ function renderAjustes(){
   if(val.length){ const media=val.reduce((s,p)=>s+p.estrellas,0)/val.length;
     $("#acierto").innerHTML+=`<p style="font-size:14px">Nota media: <b>${media.toFixed(1).replace(".",",")} ★</b> <span class="muted">en ${val.length} ${val.length===1?"look valorado":"looks valorados"}</span></p>`; }
   $("#btnAciertoReset").hidden=!ac.rondas;
-  $("#catalogoCard").hidden=CATALOGO.every(c=>S.prendas.has(idCat(c[0])));
   $("#instalarCard").hidden=!S.instalar;
   const nf=sinTres().length;
   $("#completarCard").hidden=!nf||!hayClave();
@@ -1269,7 +1221,6 @@ document.addEventListener("click",async ev=>{
     case "notaBorrar": { const id=b.dataset.for; $("#"+id).value=""; ls.del("kc."+id); break; }
     case "guardarEstilo": ls.set("kc.estilo",$("#estilo").value.slice(0,1500)); toast("Estilo guardado"); break;
     case "estiloDef": ls.del("kc.estilo"); $("#estilo").value=ESTILO_DEF; toast("Texto inicial recuperado"); break;
-    case "cargarCatalogo": cargarCatalogo(); break;
     case "completar": { if(S.completando) break; S.completando=true; b.disabled=true; $("#completarTxt").textContent="Completando…";
       try{ const n=await completarConClaude(); toast(n?`${n} ${n===1?"prenda completada":"prendas completadas"}`:"No se ha podido completar ninguna. Prueba otra vez."); }
       catch(e){ $("#completarTxt").textContent=errMsg(e)||"Cancelado."; }
