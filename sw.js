@@ -1,7 +1,7 @@
 // © 2026 kekacar. Todos los derechos reservados.
 // Kekas Closet: guarda la app para que abra sin conexión.
 // Sube la versión cada vez que cambies index.html para que el móvil coja la nueva.
-const VERSION = "kekas-v25";
+const VERSION = "kekas-v26";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 
 self.addEventListener("install", e => {

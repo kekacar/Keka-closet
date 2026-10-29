@@ -501,7 +501,7 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=fal
   return txt;
 }
 /* Gasto estimado: tokens reales que devuelve la API × precio del modelo ($ por millón) */
-const APP_V="v25";
+const APP_V="v26";
 const PRECIO={"claude-sonnet-5-5":[2,10],"claude-haiku-5-5":[0.1,0.5]};
 const mesActual=()=>ymd(new Date()).slice(0,7);
 function anotarUso(u){
@@ -829,7 +829,7 @@ Cómo trabajas:
 - Adecuas el nivel de formalidad exactamente a la ocasión y la ropa a la temperatura y a la lluvia, con capas cuando hay mucha diferencia entre mínima y máxima.
 - Menos es más: como máximo una pieza protagonista por look. Los estampados animales (leopardo, cebra) son un recurso puntual: úsalos solo cuando de verdad eleven el look, nunca por costumbre; la mayoría de looks no los llevan.
 - Complementos y joyas solo si suman, uno o dos como mucho.
-- Un look completo lleva SIEMPRE parte de arriba y de abajo (o un vestido) y zapatos; además chaqueta o abrigo si el tiempo lo pide, y bolso cuando tenga sentido. Nunca propones un look al que le falte alguna de esas piezas.
+- Un look completo lleva SIEMPRE parte de arriba y de abajo (o un vestido) y zapatos; además chaqueta o abrigo si el tiempo lo pide, y bolso cuando tenga sentido. Nunca propones un look al que le falte alguna de esas piezas. Tampoco uno al que le sobren: una sola prenda de cada tipo (nunca dos cárdigans, dos chaquetas, dos bolsos ni dos pares de zapatos) y como mucho dos capas de abrigo a la vez (por ejemplo cárdigan y abrigo).
 - Conoces a tu clienta: tienes muy en cuenta lo que le ha gustado y lo que no le convenció otras veces.
 - Solo usas prendas de la lista que te dan, por su id.
 - Tus notas son breves y van al grano: dos o tres frases cortas, unas 50 palabras como mucho.
@@ -847,6 +847,39 @@ const juntar=arr=>arr.filter(Boolean).join("\n");
 /* Acierto: cuántas peticiones de look acaban en "Dejar preparado" y cuántas a la primera (sin pedir otro) */
 const ACI_DEF=()=>({desde:ymd(new Date()),rondas:0,preparadas:0,primera:0});
 function acierto(fn){const a=ls.get("kc.acierto",null)||ACI_DEF();fn(a);ls.set("kc.acierto",a)}
+/* v26: lo que SOBRA en un look (dos prendas del mismo tipo, demasiadas capas) y lo que la nota nombra sin estar en el look */
+const sinTilde=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const CAPA=/^(cardigan|chaqueta|blazer|abrigo|jersey|chaleco|sudadera|plumifero|cazadora|gabardina|trench|kimono|poncho|capa|rebeca|americana|parka|anorak|cardi)/;
+const tipoPrenda=p=>{const w=sinTilde(p.nombre).split(/\s+/)[0]||""; return w.replace(/s$/,"")};
+function sobraEnLook(ids){
+  const ps=ids.map(id=>S.prendas.get(id)).filter(Boolean), n=c=>ps.filter(p=>p.categoria===c).length, out=[];
+  if(n("abrigo")>1) out.push("más de una chaqueta o abrigo");
+  if(n("abajo")>1) out.push("más de una parte de abajo");
+  if(n("zapatos")>1) out.push("más de un par de zapatos");
+  if(n("bolso")>1) out.push("más de un bolso");
+  if(n("arriba")>2) out.push("más de dos prendas de arriba");
+  const vistos=new Map(); ps.filter(p=>["abrigo","arriba"].includes(p.categoria)).forEach(p=>{const t=tipoPrenda(p); vistos.set(t,(vistos.get(t)||0)+1)});
+  vistos.forEach((k,t)=>{ if(k>1&&CAPA.test(t)) out.push(`dos prendas del mismo tipo (${t})`) });
+  const capas=ps.filter(p=>p.categoria==="abrigo"||(p.categoria==="arriba"&&CAPA.test(tipoPrenda(p)))).length;
+  if(capas>2) out.push(`${capas} capas de abrigo a la vez (máximo 2)`);
+  return out;
+}
+const COMPL=["collar","pendiente","pulsera","brazalete","anillo","colgante","cinturon","panuelo","fular","bufanda","sombrero","gorro","bolso","mochila","cartera"];
+function notaIncoherente(nota,ids){ // complementos que la nota nombra y no están en el look
+  const t=sinTilde(nota), nombres=ids.map(id=>sinTilde((S.prendas.get(id)||{}).nombre)).join(" | ");
+  return COMPL.filter(w=>new RegExp("\\b"+w+"(e?s)?\\b").test(t)&&!nombres.includes(w));
+}
+function recortarSobrantes(ids,ancla){ // último recurso: deja una de cada y como mucho 2 capas
+  const ps=ids.map(id=>S.prendas.get(id)).filter(Boolean), out=[], cuenta=new Map(), tipos=new Set(); let capas=0;
+  const max={abrigo:1,abajo:1,zapatos:1,bolso:1,arriba:2};
+  for(const p of [...ps].sort((a,b)=>(b.id===ancla)-(a.id===ancla))){
+    const c=p.categoria, t=tipoPrenda(p), esCapa=c==="abrigo"||(c==="arriba"&&CAPA.test(t));
+    if(max[c]&&(cuenta.get(c)||0)>=max[c]) continue;
+    if(esCapa&&(capas>=2||tipos.has(t))) continue;
+    cuenta.set(c,(cuenta.get(c)||0)+1); if(esCapa){capas++;tipos.add(t)} out.push(p.id);
+  }
+  return ids.filter(id=>out.includes(id));
+}
 function faltaEnLook(ids){
   const ps=ids.map(id=>S.prendas.get(id)).filter(Boolean), hay=c=>ps.some(p=>p.categoria===c), vestido=ps.some(p=>p.categoria==="abajo"&&tipoAbajo(p)==="vestido");
   const f=[]; if(!vestido){ if(!hay("arriba")) f.push("parte de arriba"); if(!hay("abajo")) f.push("parte de abajo (pantalón o falda)"); } if(!hay("zapatos")) f.push("zapatos");
@@ -874,11 +907,14 @@ evitar.length?`Debe ser claramente distinto del look que acaba de ver (${evitar.
 `\nFormato: {"piezas":["p07","p14"],"titulo":"nombre corto y con gracia para el look","nota":"dos o tres frases cortas (unas 50 palabras como mucho): qué armonía de color usa (p. ej. base marino, acento cobre), por qué funciona y un consejo práctico"}`]);
   try{
     let r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:1200,system:ESTILISTA,pensar:pensar(),formato:LOOK_SCHEMA});
-    let falta=faltaEnLook(limpiaPiezas(r&&r.piezas).concat(pa?[pa.id]:[]));
-    if(falta.length){ // segunda y última oportunidad (~1 céntimo, solo cuando pasa)
-      r=await pedirJSON(prompt+`\n\nIMPORTANTE: tu propuesta anterior (${limpiaPiezas(r&&r.piezas).join(", ")}) no tenía ${falta.join(" ni ")}. Un look completo lleva parte de arriba y de abajo (o un vestido) y zapatos. Elige de la lista lo que mejor encaje aunque no sea perfecto.`,{signal:ctl.signal,maxTokens:1200,system:ESTILISTA,pensar:false,formato:LOOK_SCHEMA});
-      falta=faltaEnLook(limpiaPiezas(r&&r.piezas).concat(pa?[pa.id]:[]));
+    const ids=x=>limpiaPiezas(x&&x.piezas).concat(pa&&!limpiaPiezas(x&&x.piezas).includes(pa.id)?[pa.id]:[]);
+    let falta=faltaEnLook(ids(r)), sobra=sobraEnLook(ids(r)), malNota=notaIncoherente(r&&r.nota,ids(r));
+    if(falta.length||sobra.length||malNota.length){ // segunda y última oportunidad (~1 céntimo, solo cuando pasa)
+      const avisos=[falta.length?`no tenía ${falta.join(" ni ")}`:"",sobra.length?`tenía ${sobra.join(", ")}`:"",malNota.length?`la nota hablaba de ${malNota.join(", ")} y no estaba en las piezas`:""].filter(Boolean).join("; ");
+      r=await pedirJSON(prompt+`\n\nIMPORTANTE: tu propuesta anterior (${limpiaPiezas(r&&r.piezas).join(", ")}) ${avisos}. Un look lleva una parte de arriba (como mucho dos si una es una capa como un cárdigan) y una de abajo (o un vestido), un par de zapatos, como mucho una chaqueta o abrigo, como mucho 2 capas de abrigo en total, nunca dos prendas del mismo tipo, y un solo bolso. La nota solo nombra prendas incluidas. Elige de la lista lo que mejor encaje aunque no sea perfecto.`,{signal:ctl.signal,maxTokens:1200,system:ESTILISTA,pensar:false,formato:LOOK_SCHEMA});
+      falta=faltaEnLook(ids(r));
       if(falta.length) throw new ClaudeError("incompleto",falta.join(" ni "));
+      if(sobraEnLook(ids(r)).length) r={...r,piezas:recortarSobrantes(ids(r),pa?pa.id:null)}; // último recurso: se quita lo que sobra
     }
     const arr=r&&r.piezas?[r]:(Array.isArray(r&&r.looks)?r.looks:[]), opciones=[];
     for(const x of arr){
@@ -1097,7 +1133,8 @@ fijos.length?`Estos días ya están decididos, tenlos en cuenta para no repetir:
     const lista=(Array.isArray(r&&r.dias)?r.dias:[]).slice().sort((a,b)=>String(a&&a.fecha).localeCompare(String(b&&b.fecha)));
     for(const x of lista){
       const f=String(x&&x.fecha||""); if(!dias.includes(f)) continue;
-      const piezas=limpiaPiezas(x.piezas); if(piezas.length<2||faltaEnLook(piezas).length) continue; // incompleto: ese día se queda sin planificar
+      let piezas=limpiaPiezas(x.piezas); if(piezas.length<2||faltaEnLook(piezas).length) continue; // incompleto: ese día se queda sin planificar
+      if(sobraEnLook(piezas).length) piezas=recortarSobrantes(piezas,null); // v26: fuera lo que sobra (dos del mismo tipo, demasiadas capas)
       if(piezas.some(id=>(cuenta.get(id)||0)>=2)){ repes++; pendientes.push(f); continue; } // v24: ninguna prenda más de 2 veces en la semana
       piezas.forEach(id=>cuenta.set(id,(cuenta.get(id)||0)+1));
       await guardar("planes",{id:f,fecha:f,ocasion:ocasDia(f),titulo:String(x.titulo||"Look").slice(0,80),piezas,nota:recortaNota(x.nota)}); n++;
