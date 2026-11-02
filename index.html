@@ -329,6 +329,12 @@ details.fb .lbl{display:block;font-size:12px;color:var(--muted);margin-top:10px}
       <p class="muted" style="font-size:13px">Claude valora varias combinaciones antes de proponerte una. Piensa de forma breve antes de proponer. Looks algo mejor pensados; cada petición tarda unos segundos más y cuesta algo más. Si se alarga demasiado, la app repite sin pensar para no gastar de más.</p>
     </div>
     <div class="card">
+      <h3 class="sub">Combinaciones que no me gustan</h3>
+      <p class="muted" style="font-size:14px">La estilista no las usará nunca juntas. Escribe los colores tal como aparecen en tus prendas (p. ej. “marino” y “negro”). También se añaden al marcar “El color” en “¿Qué no te convence?”.</p>
+      <ul class="diario" id="noCombiLista"></ul>
+      <div class="keyrow"><input id="ncA" placeholder="Color 1" aria-label="Color 1" autocomplete="off"><input id="ncB" placeholder="Color 2" aria-label="Color 2" autocomplete="off"><button class="btn sm" type="button" data-act="ncAnadir">Añadir</button></div>
+    </div>
+    <div class="card">
       <h3 class="sub">Lo que la estilista sabe de ti</h3>
       <p class="muted" style="font-size:14px">Aprende de los looks que dejas preparados, de las estrellas que les pones y de lo que le dices al pedir otros. Borra lo que ya no sea verdad.</p>
       <ul class="diario" id="diario"></ul>
@@ -436,7 +442,7 @@ const S={
   prendas:new Map(), planes:new Map(), favs:new Map(),
   tab:"hoy", dia:new Date().getHours()>=17?"manana":"hoy",
   ocasion:ls.get("kc.ocasion","Trabajo"), tmin:ls.get("kc.tmin",9), tmax:ls.get("kc.tmax",19),
-  prev:prevGuardada, fb:{razones:[],prendas:[]}, fbOpen:false,
+  prev:prevGuardada, fb:{razones:[],prendas:[],colores:[]}, fbOpen:false,
   cat:"todo", q:"", propuesta:{}, err:{}, errDet:{}, ultima:"", busy:null, semOcas:{}, semBusy:null, drafts:[], ficha:null, instalar:null, valorando:null
 };
 MAP.prendas=S.prendas; MAP.planes=S.planes; MAP.favoritos=S.favs;
@@ -501,7 +507,7 @@ async function pedirClaude(texto,{imagen,signal,maxTokens=1500,system,pensar=fal
   return txt;
 }
 /* Gasto estimado: tokens reales que devuelve la API × precio del modelo ($ por millón) */
-const APP_V="v26";
+const APP_V="v29";
 const PRECIO={"claude-sonnet-5-5":[2,10],"claude-haiku-5-5":[0.1,0.5]};
 const mesActual=()=>ymd(new Date()).slice(0,7);
 function anotarUso(u){
@@ -596,7 +602,7 @@ function activarGeo(){
   },()=>toast("No he podido saber tu zona. Permite la ubicación a Chrome y vuelve a probar."),{timeout:20000,maximumAge:864e5,enableHighAccuracy:false});
 }
 function tiempoTxt(t){
-  const s=`Temperatura: ${t.min} a ${t.max} °C.`;
+  const s=`Temperatura: ${t.min} a ${t.max} °C.`+(diaFrio(t)?" Hace frío: calzado cerrado que abrigue (botines, botas o zapatillas), nunca bailarinas, sandalias ni prendas de verano.":"");
   if(t.lluvia==null) return s;
   if(t.lluvia>=50) return s+` Lluvia: ${t.lluvia} % de probabilidad${t.mm?`, unos ${Math.round(t.mm)} mm`:""}. Elige calzado y prendas que aguanten el agua: nada de ante, terciopelo, bailarinas ni tejidos delicados.`;
   if(t.lluvia>=25) return s+` Posible lluvia (${t.lluvia} %): mejor un calzado que aguante algo de agua.`;
@@ -610,6 +616,12 @@ function tiempoInfo(f,t){
   return `${ll?`<span>${ll}</span>`:""}${t.manual?`<span>· temperatura a mano</span><button class="btn ghost sm" type="button" data-act="tempPrev">Usar previsión (${p.min}–${p.max} °)</button>`:`<span>· previsión del día</span>`}`;
 }
 const tiempoCorto=f=>{const t=tempDe(f);return ` <span class="muted" style="font-size:12.5px">· ${t.min}–${t.max}°${t.lluvia!=null&&t.lluvia>=25?` ☂ ${t.lluvia} %`:""}</span>`};
+/* v28: días de frío (mínima de 5 °C o menos, o media por debajo de 10 °C; con friolera, 2 °C antes) */
+const ZAP_FRIO=/\b(bailarinas?|sandalias?|alpargatas?|chanclas?|esparten[ao]s?|mules?|destalonad[oa]s?|peep)\b/;
+const soloVerano=p=>{const l=lista(p.estacion);return l.length>0&&l.every(x=>x==="verano")};
+const frioMal=p=>(p.categoria==="zapatos"&&(ZAP_FRIO.test(sinTilde(p.nombre+" "+(p.descripcion||"")))||p.abrigo==="fino"||soloVerano(p)))||(["abajo","abrigo"].includes(p.categoria)&&soloVerano(p));
+const diaFrio=t=>{const aj=ajusteT();return t.min+aj<=5||(t.min+t.max)/2+aj<10};
+const noAbriga=(ids,t)=>diaFrio(t)?ids.map(id=>S.prendas.get(id)).filter(p=>p&&frioMal(p)).map(p=>p.nombre.toLowerCase()):[];
 const sinLluviaDelicado=p=>!/\b(ante|terciopelo|bailarinas?|raso|lona)\b/i.test(p.nombre+" "+(p.descripcion||""));
 
 /* ---------- Diario de gustos y favoritos como ejemplos ---------- */
@@ -679,9 +691,27 @@ function lookCard(l,{estado,acciones,extra=""}){
     ${l.vistas?`<span class="count">Elegido entre ${esc(l.vistas)} prendas</span>`:""}
     ${extra}<div class="row">${acciones}</div></article>`;
 }
+/* v29: combinaciones de color que no le gustan (Ajustes y "¿Qué no te convence? → El color") */
+const noCombi=()=>ls.get("kc.noCombi",[]).filter(x=>x&&x.a&&x.b);
+function anadirNoCombi(a,b){ a=String(a||"").trim().toLowerCase().slice(0,40); b=String(b||"").trim().toLowerCase().slice(0,40);
+  if(!a||!b||sinTilde(a)===sinTilde(b)) return false; const l=noCombi();
+  if(l.some(x=>(sinTilde(x.a)===sinTilde(a)&&sinTilde(x.b)===sinTilde(b))||(sinTilde(x.a)===sinTilde(b)&&sinTilde(x.b)===sinTilde(a)))) return false;
+  l.push({a,b}); ls.set("kc.noCombi",l.slice(-40)); return true; }
+const noCombiTxt=()=>{const l=noCombi(); return l.length?`Combinaciones de color que NO le gustan (no las uses nunca en el mismo look): ${l.map(x=>`${x.a} con ${x.b}`).join("; ")}.`:""};
+const colorTxt=p=>sinTilde((p.color||"")+" "+(p.nombre||""));
+function combiMal(ids){ // parejas prohibidas que aparecen en el look (sin contar joyas)
+  const ps=ids.map(id=>S.prendas.get(id)).filter(p=>p&&p.categoria!=="joya"), out=[];
+  for(const {a,b} of noCombi()){ const A=sinTilde(a), B=sinTilde(b);
+    const pa=ps.filter(p=>colorTxt(p).includes(A)), pb=ps.filter(p=>colorTxt(p).includes(B));
+    if(pa.some(x=>pb.some(y=>y!==x))) out.push(`${a} con ${b}`); }
+  return out;
+}
+const coloresLook=ids=>[...new Set(ids.map(id=>S.prendas.get(id)).filter(p=>p&&p.categoria!=="joya"&&p.color).map(p=>String(p.color).toLowerCase().trim().slice(0,30)))];
 const RAZONES=["El color","Muy arreglado","Muy informal","Poco abrigo","Demasiado abrigo","Poco cómodo","Lo llevo demasiado"];
 const fbBox=l=>`<details class="fb" ${S.fbOpen?"open":""}><summary>¿Qué no te convence? Dímelo y aprendo</summary>
   <div class="chips">${RAZONES.map(x=>`<button type="button" class="chip" data-act="fbRazon" data-v="${esc(x)}" aria-pressed="${S.fb.razones.includes(x)}">${esc(x)}</button>`).join("")}</div>
+  ${S.fb.razones.includes("El color")?`<span class="lbl">¿Qué colores no te gustan juntos? Marca dos:</span>
+  <div class="chips">${coloresLook(l.piezas||[]).map(c=>`<button type="button" class="chip" data-act="fbColor" data-v="${esc(c)}" aria-pressed="${(S.fb.colores||[]).includes(c)}">${esc(c)}</button>`).join("")}</div>`:""}
   <span class="lbl">No me apetece:</span>
   <div class="chips">${porLook(l.piezas||[]).map(p=>`<button type="button" class="chip" data-act="fbPieza" data-id="${esc(p.id)}" aria-pressed="${S.fb.prendas.includes(p.id)}">${esc(p.nombre)}</button>`).join("")}</div>
   <p class="hint" style="margin-top:8px">Luego pulsa “Otro look”.</p></details>`;
@@ -774,7 +804,7 @@ function usos30(){ const desde=ymd(addDays(new Date(),-30)), hoy=ymd(new Date())
 function mostradas(){ const desde=ymd(addDays(new Date(),-6)), m=new Map();
   ls.get("kc.mostrado",[]).forEach(e=>{ if(e.f>=desde) (e.ids||[]).forEach(x=>m.set(x,(m.get(x)||0)+1)); }); return m; }
 function anotarMostrado(ids){ const desde=ymd(addDays(new Date(),-6)), l=ls.get("kc.mostrado",[]).filter(e=>e.f>=desde); l.push({f:ymd(new Date()),ids}); ls.set("kc.mostrado",l.slice(-80)); }
-function seleccion(ocasiones,{fechas=[],excluir=[],vetadas=[],tmin=S.tmin,tmax=S.tmax,lluvia=null,ancla=null,nota="",cupo=null}={}){
+function seleccion(ocasiones,{fechas=[],excluir=[],vetadas=[],tmin=S.tmin,tmax=S.tmax,lluvia=null,ancla=null,nota="",cupo=null,frio=false}={}){
   const veces=cupo||(fechas.length?vecesLlevada(fechas[0]):new Map()), vistas=mostradas(), u30=usos30();
   // Máximo 2 veces por semana (cualquier prenda) y no más de 4 propuestas en 7 días
   const okCupo=p=>(veces.get(p.id)||0)<2&&(vistas.get(p.id)||0)<4;
@@ -797,6 +827,9 @@ function seleccion(ocasiones,{fechas=[],excluir=[],vetadas=[],tmin=S.tmin,tmax=S
     if(cat==="zapatos"&&lluvia!=null&&lluvia>=50){ // con lluvia, fuera ante, terciopelo y bailarinas
       const s=c.filter(sinLluviaDelicado), s2=todas.filter(sinLluviaDelicado);
       c=s.length>=2?s:s2.length?s2:c; }
+    if(frio&&["zapatos","abajo","abrigo"].includes(cat)){ // v28: con frío, fuera bailarinas, sandalias, calzado fino y prendas solo de verano
+      const s=c.filter(p=>!frioMal(p)), s2=todas.filter(p=>!frioMal(p)&&okUso(p));
+      c=s.length>=2?s:s2.length>=2?s2:s.length?s:c; }
     if(cat==="abajo"){ // que nunca falte ningún tipo permitido: si no queda ninguno de un tipo, se añaden hasta 2
       for(const tp of ["pantalon","falda","vestido"]){
         if(vetoTipo.has(tp)||c.some(p=>tipoAbajo(p)===tp)) continue;
@@ -820,7 +853,9 @@ const ESTILISTA=`Eres una estilista profesional de prestigio internacional recon
 Cómo trabajas:
 - Antes de proponer, valoras varias combinaciones y te quedas con las mejores; no propones la primera que se te ocurre.
 - Trabajas el color con método:
-  · Los neutros (negro, marino, crudo, blanco, gris, beige, camel) combinan entre sí y con todo; no cuentan como color.
+  · Los neutros (negro, marino, crudo, blanco, gris, beige, camel) combinan con casi todo y no cuentan como color, pero NO todos entre sí: negro y marino juntos solo si hay una prenda clara (crudo, blanco, beige, gris claro) que haga contraste y separe los dos oscuros.
+  · Dos azules distintos (marino, jaspeado, vaquero, grisáceo) solo si uno es claramente más claro que el otro. Nunca dos prendas oscuras de distinto color sin un punto de luz.
+  · Antes de recurrir a la combinación más fácil (marino con negro), busca si hay una opción con más contraste o una armonía más bonita.
   · Regla 60-30-10: 60 % base (parte de abajo y chaqueta, normalmente neutros), 30 % secundario (parte de arriba, neutro o tono suave) y 10 % acento (zapatos, pañuelo, joya o bolso, o la pieza protagonista).
   · Armonías, de más a menos habitual: neutros con un acento; monocromática (tonos de un mismo color); análoga (colores vecinos del círculo cromático, p. ej. granate y rosa palo); complementaria solo en el 10 % de acento (p. ej. marino con un toque cobre o camel).
   · Un estampado ocupa el 30 % o el 10 %, nunca el 60 %, y solo uno por look.
@@ -829,7 +864,7 @@ Cómo trabajas:
 - Adecuas el nivel de formalidad exactamente a la ocasión y la ropa a la temperatura y a la lluvia, con capas cuando hay mucha diferencia entre mínima y máxima.
 - Menos es más: como máximo una pieza protagonista por look. Los estampados animales (leopardo, cebra) son un recurso puntual: úsalos solo cuando de verdad eleven el look, nunca por costumbre; la mayoría de looks no los llevan.
 - Complementos y joyas solo si suman, uno o dos como mucho.
-- Un look completo lleva SIEMPRE parte de arriba y de abajo (o un vestido) y zapatos; además chaqueta o abrigo si el tiempo lo pide, y bolso cuando tenga sentido. Nunca propones un look al que le falte alguna de esas piezas. Tampoco uno al que le sobren: una sola prenda de cada tipo (nunca dos cárdigans, dos chaquetas, dos bolsos ni dos pares de zapatos) y como mucho dos capas de abrigo a la vez (por ejemplo cárdigan y abrigo).
+- Un look completo lleva SIEMPRE parte de arriba y de abajo (o un vestido) y zapatos; además chaqueta o abrigo si el tiempo lo pide, y bolso cuando tenga sentido. Nunca propones un look al que le falte alguna de esas piezas. Tampoco uno al que le sobren: una sola prenda de cada tipo (nunca dos cárdigans, dos chaquetas, dos bolsos ni dos pares de zapatos) y como mucho dos capas de abrigo a la vez (por ejemplo cárdigan y abrigo). Dos prendas de arriba solo si una va abierta encima (cárdigan, chaleco, blazer) o es un jersey sobre una camisa o blusa; nunca un jersey con un top o una camiseta debajo que no se vería.
 - Conoces a tu clienta: tienes muy en cuenta lo que le ha gustado y lo que no le convenció otras veces.
 - Solo usas prendas de la lista que te dan, por su id.
 - Tus notas son breves y van al grano: dos o tres frases cortas, unas 50 palabras como mucho.
@@ -849,8 +884,21 @@ const ACI_DEF=()=>({desde:ymd(new Date()),rondas:0,preparadas:0,primera:0});
 function acierto(fn){const a=ls.get("kc.acierto",null)||ACI_DEF();fn(a);ls.set("kc.acierto",a)}
 /* v26: lo que SOBRA en un look (dos prendas del mismo tipo, demasiadas capas) y lo que la nota nombra sin estar en el look */
 const sinTilde=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-const CAPA=/^(cardigan|chaqueta|blazer|abrigo|jersey|chaleco|sudadera|plumifero|cazadora|gabardina|trench|kimono|poncho|capa|rebeca|americana|parka|anorak|cardi)/;
-const tipoPrenda=p=>{const w=sinTilde(p.nombre).split(/\s+/)[0]||""; return w.replace(/s$/,"")};
+/* v27: familia de cada prenda buscando en TODO el nombre (no solo la primera palabra) y con sinónimos */
+const FAMILIAS=[["cardigan",/\b(cardigan|rebeca|chaqueta de punto)\b/],["jersey",/\b(jersey|jersei|jerseis|jerseys|sueter|pullover|sudadera|polar)\b/],
+  ["chaqueta",/\b(chaqueta|cazadora|blazer|americana|bomber|torera|sobrecamisa|kimono|chaleco)\b/],["abrigo",/\b(abrigo|plumifero|parka|gabardina|trench|anorak|chaqueton|poncho|capa)\b/],
+  ["camisa",/\b(camisa|blusa)\b/]];
+const familia=p=>{const t=sinTilde(p.nombre); for(const [f,re] of FAMILIAS) if(re.test(t)) return f; return ""};
+const tipoPrenda=p=>familia(p)||((sinTilde(p.nombre).split(/\s+/)[0]||"").replace(/s$/,""));
+const esCapaP=p=>p.categoria==="abrigo"||["cardigan","jersey","chaqueta","abrigo"].includes(familia(p));
+const ABIERTA=p=>["cardigan","chaqueta"].includes(familia(p)); // se lleva abierta encima de otra prenda
+function arribaIncompatible(ps){ // dos prendas de arriba: solo si una va abierta encima (cárdigan, chaleco…) o es jersey sobre camisa/blusa
+  const a=ps.filter(p=>p.categoria==="arriba"); if(a.length<2) return "";
+  const [x,y]=a; if(ABIERTA(x)||ABIERTA(y)) return "";
+  const fx=familia(x), fy=familia(y);
+  if((fx==="jersey"&&fy==="camisa")||(fy==="jersey"&&fx==="camisa")) return "";
+  return `dos prendas de arriba que no se llevan juntas (${x.nombre.toLowerCase()} y ${y.nombre.toLowerCase()})`;
+}
 function sobraEnLook(ids){
   const ps=ids.map(id=>S.prendas.get(id)).filter(Boolean), n=c=>ps.filter(p=>p.categoria===c).length, out=[];
   if(n("abrigo")>1) out.push("más de una chaqueta o abrigo");
@@ -859,8 +907,9 @@ function sobraEnLook(ids){
   if(n("bolso")>1) out.push("más de un bolso");
   if(n("arriba")>2) out.push("más de dos prendas de arriba");
   const vistos=new Map(); ps.filter(p=>["abrigo","arriba"].includes(p.categoria)).forEach(p=>{const t=tipoPrenda(p); vistos.set(t,(vistos.get(t)||0)+1)});
-  vistos.forEach((k,t)=>{ if(k>1&&CAPA.test(t)) out.push(`dos prendas del mismo tipo (${t})`) });
-  const capas=ps.filter(p=>p.categoria==="abrigo"||(p.categoria==="arriba"&&CAPA.test(tipoPrenda(p)))).length;
+  vistos.forEach((k,t)=>{ if(k>1) out.push(`dos prendas del mismo tipo (${t})`) });
+  const inc=arribaIncompatible(ps); if(inc&&n("arriba")===2) out.push(inc);
+  const capas=ps.filter(esCapaP).length;
   if(capas>2) out.push(`${capas} capas de abrigo a la vez (máximo 2)`);
   return out;
 }
@@ -869,14 +918,16 @@ function notaIncoherente(nota,ids){ // complementos que la nota nombra y no est�
   const t=sinTilde(nota), nombres=ids.map(id=>sinTilde((S.prendas.get(id)||{}).nombre)).join(" | ");
   return COMPL.filter(w=>new RegExp("\\b"+w+"(e?s)?\\b").test(t)&&!nombres.includes(w));
 }
-function recortarSobrantes(ids,ancla){ // último recurso: deja una de cada y como mucho 2 capas
+function recortarSobrantes(ids,ancla){ // último recurso: deja una de cada, prendas de arriba compatibles y como mucho 2 capas
   const ps=ids.map(id=>S.prendas.get(id)).filter(Boolean), out=[], cuenta=new Map(), tipos=new Set(); let capas=0;
   const max={abrigo:1,abajo:1,zapatos:1,bolso:1,arriba:2};
   for(const p of [...ps].sort((a,b)=>(b.id===ancla)-(a.id===ancla))){
-    const c=p.categoria, t=tipoPrenda(p), esCapa=c==="abrigo"||(c==="arriba"&&CAPA.test(t));
+    const c=p.categoria, t=tipoPrenda(p), capa=esCapaP(p);
     if(max[c]&&(cuenta.get(c)||0)>=max[c]) continue;
-    if(esCapa&&(capas>=2||tipos.has(t))) continue;
-    cuenta.set(c,(cuenta.get(c)||0)+1); if(esCapa){capas++;tipos.add(t)} out.push(p.id);
+    if(["abrigo","arriba"].includes(c)&&tipos.has(t)) continue;
+    if(capa&&capas>=2) continue;
+    if(c==="arriba"&&(cuenta.get(c)||0)===1){ const otra=out.map(id=>S.prendas.get(id)).find(q=>q.categoria==="arriba"); if(arribaIncompatible([otra,p])) continue; }
+    cuenta.set(c,(cuenta.get(c)||0)+1); if(["abrigo","arriba"].includes(c)) tipos.add(t); if(capa) capas++; out.push(p.id);
   }
   return ids.filter(id=>out.includes(id));
 }
@@ -890,15 +941,15 @@ const COHERENCIA_TXT="Decide primero las piezas. El título y la nota solo puede
 async function pedirLook(f,ocasion,{evitar=[],vetadas=[],motivo="",ancla=null,intentos=1}={}){
   if(S.busy) return;
   const pa=ancla?S.prendas.get(ancla):null, ctl=new AbortController();
-  S.busy={fecha:f,ctl,ancla:pa?pa.nombre.toLowerCase():""}; delete S.err[f]; delete S.errDet[f]; S.fb={razones:[],prendas:[]}; S.fbOpen=false; renderLook();
+  S.busy={fecha:f,ctl,ancla:pa?pa.nombre.toLowerCase():""}; delete S.err[f]; delete S.errDet[f]; S.fb={razones:[],prendas:[],colores:[]}; S.fbOpen=false; renderLook();
   const t=tempDe(f);
   const aj=ajusteT(); // friolera: se eligen prendas como si hiciera 2 °C menos (calurosa: 2 °C más)
-  const sel=seleccion([ocasion],{fechas:[f],excluir:evitar,vetadas,tmin:t.min+aj,tmax:t.max+aj,lluvia:t.lluvia,ancla:pa?pa.id:null,nota:ls.get("kc.notaHoy","")});
+  const sel=seleccion([ocasion],{fechas:[f],excluir:evitar,vetadas,tmin:t.min+aj,tmax:t.max+aj,lluvia:t.lluvia,ancla:pa?pa.id:null,nota:ls.get("kc.notaHoy",""),frio:diaFrio(t)});
   const prompt=juntar([
 `Propón UN look completo para el ${largo(f)} usando SOLO prendas de esta lista, ya preseleccionada para la ocasión y el tiempo. Antes de decidir, valora varias combinaciones y quédate con la mejor.`,
 `Ocasión: ${ocasion} (formalidad ideal ${FORM_OCAS[ocasion]||"3"}). ${tiempoTxt(t)}`, termoTxt(),
 pa?`Quiere llevar sí o sí: ${pa.nombre} (${pa.id}). El look debe construirse alrededor de esa prenda.`:"",
-REGLAS_TXT(), favTxt([ocasion]), diarioTxt(), VARIEDAD_TXT, COHERENCIA_TXT,
+REGLAS_TXT(), noCombiTxt(), favTxt([ocasion]), diarioTxt(), VARIEDAD_TXT, COHERENCIA_TXT,
 animalReciente(f)&&!(pa&&esAnimal(pa))?"Estos días ya ha llevado estampado animal: hoy evítalo.":"",
 notaTxt("notaHoy"),
 motivo?`Del look que acaba de ver no le convenció: ${motivo}. Tenlo muy en cuenta.`:"",
@@ -908,12 +959,14 @@ evitar.length?`Debe ser claramente distinto del look que acaba de ver (${evitar.
   try{
     let r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:1200,system:ESTILISTA,pensar:pensar(),formato:LOOK_SCHEMA});
     const ids=x=>limpiaPiezas(x&&x.piezas).concat(pa&&!limpiaPiezas(x&&x.piezas).includes(pa.id)?[pa.id]:[]);
-    let falta=faltaEnLook(ids(r)), sobra=sobraEnLook(ids(r)), malNota=notaIncoherente(r&&r.nota,ids(r));
-    if(falta.length||sobra.length||malNota.length){ // segunda y última oportunidad (~1 céntimo, solo cuando pasa)
-      const avisos=[falta.length?`no tenía ${falta.join(" ni ")}`:"",sobra.length?`tenía ${sobra.join(", ")}`:"",malNota.length?`la nota hablaba de ${malNota.join(", ")} y no estaba en las piezas`:""].filter(Boolean).join("; ");
-      r=await pedirJSON(prompt+`\n\nIMPORTANTE: tu propuesta anterior (${limpiaPiezas(r&&r.piezas).join(", ")}) ${avisos}. Un look lleva una parte de arriba (como mucho dos si una es una capa como un cárdigan) y una de abajo (o un vestido), un par de zapatos, como mucho una chaqueta o abrigo, como mucho 2 capas de abrigo en total, nunca dos prendas del mismo tipo, y un solo bolso. La nota solo nombra prendas incluidas. Elige de la lista lo que mejor encaje aunque no sea perfecto.`,{signal:ctl.signal,maxTokens:1200,system:ESTILISTA,pensar:false,formato:LOOK_SCHEMA});
+    let falta=faltaEnLook(ids(r)), sobra=sobraEnLook(ids(r)), malNota=notaIncoherente(r&&r.nota,ids(r)), frioNo=noAbriga(ids(r),t), colMal=combiMal(ids(r));
+    if(falta.length||sobra.length||malNota.length||frioNo.length||colMal.length){ // segunda y última oportunidad (~1 céntimo, solo cuando pasa)
+      const avisos=[falta.length?`no tenía ${falta.join(" ni ")}`:"",sobra.length?`tenía ${sobra.join(", ")}`:"",malNota.length?`la nota hablaba de ${malNota.join(", ")} y no estaba en las piezas`:"",colMal.length?`juntaba ${colMal.join(" y ")}, combinación que no le gusta`:"",frioNo.length?`con ${t.min} °C de mínima llevaba ${frioNo.join(" y ")}, que no abriga (hace falta calzado cerrado que abrigue)`:""].filter(Boolean).join("; ");
+      r=await pedirJSON(prompt+`\n\nIMPORTANTE: tu propuesta anterior (${limpiaPiezas(r&&r.piezas).join(", ")}) ${avisos}. Un look lleva una parte de arriba (como mucho dos si una va abierta encima, como un cárdigan, o es un jersey sobre camisa) y una de abajo (o un vestido), un par de zapatos, como mucho una chaqueta o abrigo, como mucho 2 capas de abrigo en total, nunca dos prendas del mismo tipo, y un solo bolso. La nota solo nombra prendas incluidas. Elige de la lista lo que mejor encaje aunque no sea perfecto.`,{signal:ctl.signal,maxTokens:1200,system:ESTILISTA,pensar:false,formato:LOOK_SCHEMA});
       falta=faltaEnLook(ids(r));
       if(falta.length) throw new ClaudeError("incompleto",falta.join(" ni "));
+      frioNo=noAbriga(ids(r),t); if(frioNo.length) throw new ClaudeError("frio",frioNo.join(" y "));
+      colMal=combiMal(ids(r)); if(colMal.length) throw new ClaudeError("colores",colMal.join(" y "));
       if(sobraEnLook(ids(r)).length) r={...r,piezas:recortarSobrantes(ids(r),pa?pa.id:null)}; // último recurso: se quita lo que sobra
     }
     const arr=r&&r.piezas?[r]:(Array.isArray(r&&r.looks)?r.looks:[]), opciones=[];
@@ -927,7 +980,7 @@ evitar.length?`Debe ser claramente distinto del look que acaba de ver (${evitar.
     S.propuesta[f]={opciones,i:0,ancla:pa?pa.id:null,intentos};
     anotarMostrado(opciones[0].piezas);
     if(intentos===1) acierto(a=>a.rondas++);
-  }catch(e){ const m=e.code==="encaje"?"La propuesta no encajaba con tu armario. Prueba otra vez.":e.code==="incompleto"?`La estilista no ha encontrado un look completo (le falta ${e.message}). Revisa la nota “Para la estilista”: puede que pida algo imposible con lo que hay disponible.`:errMsg(e); if(m) S.err[f]=m;
+  }catch(e){ const m=e.code==="encaje"?"La propuesta no encajaba con tu armario. Prueba otra vez.":e.code==="colores"?`La estilista no ha encontrado un look sin ${e.message}, que no te gusta. Pulsa “Otro look” o revisa la nota “Para la estilista”.`:e.code==="frio"?`Con este frío la estilista solo encontraba looks con ${e.message}. Revisa en el Armario si tienes calzado de abrigo marcado para invierno, o pulsa “Otro look”.`:e.code==="incompleto"?`La estilista no ha encontrado un look completo (le falta ${e.message}). Revisa la nota “Para la estilista”: puede que pida algo imposible con lo que hay disponible.`:errMsg(e); if(m) S.err[f]=m;
     S.errDet[f]=["json","vacio","corto","encaje","otro","modelo","saturado","limite"].includes(e.code)?(S.ultima||"")+(e.code==="otro"||e.code==="modelo"?"\nError: "+(e.message||""):""):""; }
   finally{ S.busy=null; renderLook(); }
 }
@@ -1109,19 +1162,19 @@ function renderSemana(){
     </article>`}).join("");
 }
 async function planificar(dias,reintento=false){
-  const pendientes=[]; // días que repetían prenda: se piden otra vez (una sola vez)
+  const pendientes=[]; // días que repetían prenda o no abrigaban: se piden otra vez (una sola vez)
   if(S.semBusy||!dias.length) return;
   const ctl=new AbortController(); S.semBusy={dias,ctl}; $("#semErr").innerHTML=""; renderSemana();
   const fijos=semana().filter(f=>S.planes.has(f)&&!dias.includes(f)).map(f=>`${f}: ${(S.planes.get(f).piezas||[]).join(", ")}`);
   const ocs=[...new Set(dias.map(ocasDia))], ts=dias.map(tempDe);
   const aj=ajusteT();
   const cupo=new Map(); semana().filter(f=>S.planes.has(f)&&!dias.includes(f)).forEach(f=>(S.planes.get(f).piezas||[]).forEach(x=>cupo.set(x,(cupo.get(x)||0)+1)));
-  const sel=seleccion(ocs,{tmin:Math.min(...ts.map(t=>t.min))+aj,tmax:Math.max(...ts.map(t=>t.max))+aj,nota:ls.get("kc.notaSem",""),cupo});
+  const sel=seleccion(ocs,{tmin:Math.min(...ts.map(t=>t.min))+aj,tmax:Math.max(...ts.map(t=>t.max))+aj,nota:ls.get("kc.notaSem",""),cupo,frio:ts.every(diaFrio)});
   const prompt=juntar([
 `Planifica un look por día usando SOLO prendas de esta lista, ya preseleccionada para las ocasiones y el tiempo.
 Días a planificar:
 ${dias.map(f=>`- ${f} (${largo(f)}): ${ocasDia(f)} (formalidad ideal ${FORM_OCAS[ocasDia(f)]||"3"}). ${tiempoTxt(tempDe(f))}`).join("\n")}`,
-termoTxt(), REGLAS_TXT(), favTxt(ocs), diarioTxt(), VARIEDAD_TXT, COHERENCIA_TXT,
+termoTxt(), REGLAS_TXT(), noCombiTxt(), favTxt(ocs), diarioTxt(), VARIEDAD_TXT, COHERENCIA_TXT,
 "Reparte bien: no repitas la misma parte de arriba en la semana y evita repetir parte de abajo en días seguidos. Ninguna prenda (tampoco chaquetas, bolsos, zapatos ni joyas) más de 2 veces en la semana, contando los días ya decididos. Como mucho uno o dos looks de la semana con estampado animal.",
 notaTxt("notaSem"),
 fijos.length?`Estos días ya están decididos, tenlos en cuenta para no repetir:\n${fijos.join("\n")}`:"",
@@ -1129,18 +1182,20 @@ fijos.length?`Estos días ya están decididos, tenlos en cuenta para no repetir:
 `\nFormato: {"dias":[{"fecha":"AAAA-MM-DD","piezas":["p07","p14"],"titulo":"nombre corto del look","nota":"una o dos frases cortas: armonía de color y por qué funciona"}]}`]);
   try{
     const r=await pedirJSON(prompt,{signal:ctl.signal,maxTokens:3000,system:ESTILISTA,pensar:pensar(),formato:SCH_SEMANA});
-    let n=0, repes=0; const cuenta=new Map(cupo);
+    let n=0, repes=0, frios=0, colores=0; const cuenta=new Map(cupo);
     const lista=(Array.isArray(r&&r.dias)?r.dias:[]).slice().sort((a,b)=>String(a&&a.fecha).localeCompare(String(b&&b.fecha)));
     for(const x of lista){
       const f=String(x&&x.fecha||""); if(!dias.includes(f)) continue;
       let piezas=limpiaPiezas(x.piezas); if(piezas.length<2||faltaEnLook(piezas).length) continue; // incompleto: ese día se queda sin planificar
       if(sobraEnLook(piezas).length) piezas=recortarSobrantes(piezas,null); // v26: fuera lo que sobra (dos del mismo tipo, demasiadas capas)
+      if(noAbriga(piezas,tempDe(f)).length){ frios++; pendientes.push(f); continue; }
+      if(combiMal(piezas).length){ colores++; pendientes.push(f); continue; } // v29: colores que no le gustan juntos // v28: cada día con SU temperatura
       if(piezas.some(id=>(cuenta.get(id)||0)>=2)){ repes++; pendientes.push(f); continue; } // v24: ninguna prenda más de 2 veces en la semana
       piezas.forEach(id=>cuenta.set(id,(cuenta.get(id)||0)+1));
       await guardar("planes",{id:f,fecha:f,ocasion:ocasDia(f),titulo:String(x.titulo||"Look").slice(0,80),piezas,nota:recortaNota(x.nota)}); n++;
     }
-    if(!n&&!repes) $("#semErr").innerHTML=`<p class="err">La propuesta no encajaba con tu armario. Prueba otra vez.</p>`;
-    else if(repes&&reintento) $("#semErr").innerHTML=`<p class="muted">${repes===1?"Un día se ha quedado":`${repes} días se han quedado`} sin plan porque repetía alguna prenda por tercera vez esta semana. Pulsa “Sugerir” en ese día.</p>`;
+    if(!n&&!repes&&!frios&&!colores) $("#semErr").innerHTML=`<p class="err">La propuesta no encajaba con tu armario. Prueba otra vez.</p>`;
+    else if((repes||frios||colores)&&reintento){ const k=repes+frios+colores, por=[repes?"repetía alguna prenda por tercera vez esta semana":"",frios?"no abrigaba lo suficiente para el frío":"",colores?"juntaba colores que no te gustan":""].filter(Boolean).join(" o "); $("#semErr").innerHTML=`<p class="muted">${k===1?"Un día se ha quedado":`${k} días se han quedado`} sin plan porque ${por}. Pulsa “Sugerir” en ese día.</p>`; }
   }catch(e){ const m=errMsg(e); if(m) $("#semErr").innerHTML=`<p class="err">${esc(m)}</p>`; }
   finally{ S.semBusy=null; renderSemana(); }
   // v25: en vez de dejar el día vacío, se pide un look alternativo para esos días (una vez, ~1 céntimo)
@@ -1164,6 +1219,7 @@ function renderAjustes(){
   $("#diario").innerHTML=(sen?`<li><span>🌡️ ${sen==="frio"?"Eres algo friolera: te abriga un poco más":"Eres algo calurosa: te viste un poco más fresca"}</span></li>`:"")+
     (di.length?di.map((x,i)=>`<li><span>${x.t==="est"?`<span class="estrellas mini">${estrellasTxt(x.n||0)}</span>`:x.t==="si"?"👍 Eligió":"👎 No le convenció"} ${esc(x.txt)}</span><button class="btn ghost sm" type="button" data-act="diarioQuita" data-v="${i}" aria-label="Olvidar esto">✕</button></li>`).join(""):`<li class="muted">Aún nada. Aprenderá en cuanto dejes looks preparados, los puntúes o le digas qué no te convence.</li>`);
   $("#btnDiarioBorrar").hidden=!di.length;
+  const nc=noCombi(); $("#noCombiLista").innerHTML=nc.length?nc.map((x,i)=>`<li><span>✕ ${esc(x.a)} con ${esc(x.b)}</span><button class="btn ghost sm" type="button" data-act="ncQuitar" data-v="${i}" aria-label="Quitar">Quitar</button></li>`).join(""):`<li class="muted">Aún ninguna.</li>`;
   const ac=ls.get("kc.acierto",null)||ACI_DEF(), pc=(x,y)=>y?Math.round(x*100/y)+" %":"–";
   $("#acierto").innerHTML=ac.rondas?`<p style="font:500 22px var(--f-mono);font-variant-numeric:tabular-nums">${pc(ac.primera,ac.rondas)} a la primera</p>
     <p class="muted" style="font-size:14px">Desde el ${esc(largo(ac.desde))}: ${ac.rondas} ${ac.rondas===1?"petición":"peticiones"} de look, ${ac.preparadas} ${ac.preparadas===1?"dejado preparado":"dejados preparados"} (${pc(ac.preparadas,ac.rondas)}).</p>`
@@ -1186,7 +1242,7 @@ async function cargarCatalogo(){
   await DB.putMany("prendas",nuevas); nuevas.forEach(p=>S.prendas.set(p.id,p)); renderAll(); toast(`${nuevas.length} prendas cargadas`);
 }
 async function exportar(){
-  const datos={app:"kekas-closet",version:1,fecha:new Date().toISOString(),prendas:await DB.all("prendas"),planes:await DB.all("planes"),favoritos:await DB.all("favoritos"),diario:ls.get("kc.diario",[]),estilo:ls.get("kc.estilo",null)};
+  const datos={app:"kekas-closet",version:1,fecha:new Date().toISOString(),prendas:await DB.all("prendas"),planes:await DB.all("planes"),favoritos:await DB.all("favoritos"),diario:ls.get("kc.diario",[]),estilo:ls.get("kc.estilo",null),noCombi:noCombi()};
   const url=URL.createObjectURL(new Blob([JSON.stringify(datos)],{type:"application/json"}));
   const a=document.createElement("a"); a.href=url; a.download=`kekas-closet-${ymd(new Date())}.json`; document.body.append(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),5000); toast("Copia descargada");
@@ -1196,6 +1252,7 @@ async function importar(file){
     const d=JSON.parse(await file.text());
     if(d.app!=="kekas-closet") throw 0;
     for(const s of STORES){ const arr=Array.isArray(d[s])?d[s].filter(o=>o&&typeof o.id==="string"):[]; if(arr.length) await DB.putMany(s,arr); }
+    if(Array.isArray(d.noCombi)) d.noCombi.forEach(x=>x&&anadirNoCombi(x.a,x.b));
     if(typeof d.estilo==="string"&&d.estilo.trim()) ls.set("kc.estilo",d.estilo.slice(0,1500));
     if(Array.isArray(d.diario)&&d.diario.length) ls.set("kc.diario",d.diario.filter(x=>x&&typeof x.txt==="string").slice(0,20));
     await cargarTodo(); toast("Copia restaurada");
@@ -1215,7 +1272,10 @@ document.addEventListener("click",async ev=>{
     case "otro": { const fs=fechaSel(), pr=S.propuesta[fs], plan=S.planes.get(fs);
       const vistas=pr?pr.opciones.flatMap(o=>o.piezas):plan?(plan.piezas||[]):[];
       const vetadas=S.fb.prendas.slice();
-      const motivo=[...S.fb.razones.map(x=>x.toLowerCase()),vetadas.length?"no le apetece "+vetadas.map(nombreDe).join(", ").toLowerCase():""].filter(Boolean).join("; ");
+      const cols=(S.fb.colores||[]).slice(0,4), nuevas=[];
+      for(let i=0;i<cols.length;i++) for(let j=i+1;j<cols.length;j++) if(anadirNoCombi(cols[i],cols[j])) nuevas.push(`${cols[i]} con ${cols[j]}`);
+      if(nuevas.length) toast(`Apuntado: no combinar ${nuevas.join(", ")}`);
+      const motivo=[...S.fb.razones.map(x=>x==="El color"&&cols.length>1?`no le gusta ${cols.join(" con ")}`:x.toLowerCase()),vetadas.length?"no le apetece "+vetadas.map(nombreDe).join(", ").toLowerCase():""].filter(Boolean).join("; ");
       if(motivo&&pr){ const l=pr.opciones[pr.i]; anotarDiario("no",`«${l.titulo}» (${nombres(l.piezas)}): ${motivo}`); }
       const ancla=pr&&pr.ancla&&!vetadas.includes(pr.ancla)?pr.ancla:null;
       pedirLook(fs,S.ocasion,{evitar:[...new Set(vistas)].filter(x=>x!==ancla),vetadas,motivo,ancla,intentos:pr?(pr.intentos||1)+1:1}); break; }
@@ -1227,7 +1287,8 @@ document.addEventListener("click",async ev=>{
       await guardar("planes",q); anotarValoracion(q); break; }
     case "valFav": { const p=S.valorando&&S.planes.get(S.valorando.f); p&&guardarFav(p); break; }
     case "valListo": S.valorando=null; renderAll(); break;
-    case "fbRazon": b.setAttribute("aria-pressed",alternar(S.fb.razones,v)); break;
+    case "fbRazon": b.setAttribute("aria-pressed",alternar(S.fb.razones,v)); if(v==="El color"){ S.fbOpen=true; if(!S.fb.razones.includes(v)) S.fb.colores=[]; renderLook(); } break;
+    case "fbColor": { S.fb.colores=S.fb.colores||[]; alternar(S.fb.colores,v); b.setAttribute("aria-pressed",S.fb.colores.includes(v)); break; }
     case "fbPieza": b.setAttribute("aria-pressed",alternar(S.fb.prendas,b.dataset.id)); break;
     case "parar": S.busy&&S.busy.ctl.abort(); break;
     case "preparar": { const fs=fechaSel(), l=propActual(fs), pr=S.propuesta[fs]; if(!l) break;
@@ -1269,6 +1330,8 @@ document.addEventListener("click",async ev=>{
     case "tempPrev": quitarTempManual(fechaSel()); renderHoy(); break;
     case "diarioQuita": { const d=ls.get("kc.diario",[]); d.splice(Number(v),1); ls.set("kc.diario",d); renderAjustes(); break; }
     case "aciertoReset": ls.del("kc.acierto"); renderAjustes(); toast("Contador a cero"); break;
+    case "ncAnadir": { if(anadirNoCombi($("#ncA").value,$("#ncB").value)){ $("#ncA").value=""; $("#ncB").value=""; toast("Combinación apuntada"); renderAjustes(); } else toast("Escribe dos colores distintos (o ya estaba apuntada)"); break; }
+    case "ncQuitar": { const l=noCombi(); l.splice(Number(v),1); ls.set("kc.noCombi",l); renderAjustes(); break; }
     case "diarioBorrar": ls.del("kc.diario"); renderAjustes(); toast("La estilista empieza de cero"); break;
     case "verClave": { const i=$("#clave"); i.type=i.type==="password"?"text":"password"; b.textContent=i.type==="password"?"Ver":"Ocultar"; break; }
     case "guardarClave": { const k=$("#clave").value.trim(); if(!k){toast("Pega primero la clave");break}
