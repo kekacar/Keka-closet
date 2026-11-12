@@ -194,6 +194,16 @@ details.fb .lbl{display:block;font-size:12px;color:var(--muted);margin-top:10px}
 .pieces li .piece{flex:1;min-width:0}
 .swap{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);border-radius:999px;width:36px;height:36px;display:grid;place-items:center;color:var(--muted);font-size:17px;line-height:1;padding:0}
 .swap:active{color:var(--gold);border-color:var(--gold)}
+/* v34: crear tus propios looks */
+.tile.sel .thumb{border:3px solid var(--gold)}
+.tile .ok{position:absolute;right:6px;top:6px;width:24px;height:24px;border-radius:50%;background:var(--gold);color:var(--on-gold);display:grid;place-items:center;font-size:14px;font-weight:700}
+.crearbar{position:fixed;left:0;right:0;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));z-index:21;background:var(--surface);border-top:1px solid var(--gold);box-shadow:0 -6px 18px rgba(0,0,0,.08);
+  padding:10px max(16px,env(safe-area-inset-left,0px)) 10px max(16px,env(safe-area-inset-right,0px))}
+.crearbar .in{max-width:640px;margin:0 auto;display:grid;gap:8px}
+.crearbar .mini-sel{position:relative;padding:0;background:none;cursor:pointer}
+.crearbar .mini-sel .x{position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:10px;display:grid;place-items:center}
+body.creando .toast{bottom:calc(var(--nav-h) + 140px + env(safe-area-inset-bottom,0px))}
+body.creando main{padding-bottom:calc(var(--nav-h) + 150px + env(safe-area-inset-bottom,0px))}
 </style>
 </head>
 <body>
@@ -271,7 +281,8 @@ details.fb .lbl{display:block;font-size:12px;color:var(--muted);margin-top:10px}
   </section>
 
   <section data-view="armario" hidden>
-    <div class="row" style="justify-content:space-between"><h2>Mi armario</h2><span class="count" id="cuentaPrendas"></span></div>
+    <div class="row" style="justify-content:space-between"><h2>Mi armario</h2><span class="row" style="gap:10px"><span class="count" id="cuentaPrendas"></span><button class="btn gold sm" type="button" data-act="crearLook" id="btnCrear">＋ Crear look</button></span></div>
+    <p class="banner" id="crearAviso" hidden>Toca las prendas de tu look. Cuando lo tengas, pulsa “Guardar look” abajo. La estilista aprenderá de él.</p>
     <input class="search" id="buscar" type="search" placeholder="Buscar: leopardo, marino, blazer…" autocomplete="off">
     <div class="chips scroll" id="catChips"></div>
     <div id="grid"></div>
@@ -291,7 +302,8 @@ details.fb .lbl{display:block;font-size:12px;color:var(--muted);margin-top:10px}
 
   <section data-view="favs" hidden>
     <h2>Looks favoritos</h2>
-    <p class="muted" style="font-size:14px">La estilista se inspira en estos looks para entender tu gusto. Y en “¿Qué me pongo?” y en “Semana” puedes repetirlos sin gastar IA.</p>
+    <p class="muted" style="font-size:14px">La estilista se inspira en estos looks para entender tu gusto, sobre todo en los que haces tú. Y en “¿Qué me pongo?” y en “Semana” puedes repetirlos sin gastar IA.</p>
+    <div class="chips" id="favFiltro" hidden></div>
     <div id="favList" style="display:grid;gap:12px"></div>
   </section>
 
@@ -339,6 +351,8 @@ details.fb .lbl{display:block;font-size:12px;color:var(--muted);margin-top:10px}
       <h3 class="sub">Combinaciones que no me gustan</h3>
       <p class="muted" style="font-size:14px">La estilista no las usará nunca juntas. Escribe los colores tal como aparecen en tus prendas (p. ej. “marino” y “negro”). También se añaden al marcar “El color” en “¿Qué no te convence?”.</p>
       <ul class="diario" id="noCombiLista"></ul>
+      <p class="muted" style="font-size:14px;margin-top:4px"><b>Prendas que no van juntas.</b> Se apuntan solas cuando cambias con ↻ la misma prenda dos veces estando con otra. Quita las que no sean verdad.</p>
+      <ul class="diario" id="parejaLista"></ul>
       <div class="keyrow"><input id="ncA" placeholder="Color 1" aria-label="Color 1" autocomplete="off"><input id="ncB" placeholder="Color 2" aria-label="Color 2" autocomplete="off"><button class="btn sm" type="button" data-act="ncAnadir">Añadir</button></div>
     </div>
     <div class="card">
@@ -394,6 +408,7 @@ details.fb .lbl{display:block;font-size:12px;color:var(--muted);margin-top:10px}
   <button type="button" data-act="tab" data-v="semana"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Semana</button>
 </div></nav>
 
+<div class="crearbar" id="crearBar" hidden><div class="in"></div></div>
 <div class="sheet" id="sheet" hidden><div class="panel" id="sheetPanel"></div></div>
 <input id="fotoFicha" type="file" accept="image/*" hidden>
 <div class="toast" id="toast" role="status" hidden></div>
@@ -534,7 +549,7 @@ async function pedirClaude(texto,op={}){
 }
 /* Gasto estimado: tokens reales que devuelve la API × precio del modelo ($ por millón).
    v30: escribir en la caché cuesta 1,25 veces la entrada normal; leer de ella, 0,1 veces */
-const APP_V="v31";
+const APP_V="v34";
 const PRECIO={"claude-sonnet-5-5":[2,10],"claude-haiku-5-5":[0.1,0.5]};
 const mesActual=()=>ymd(new Date()).slice(0,7);
 function anotarUso(u){
@@ -674,11 +689,21 @@ function sensacion(){
 }
 const ajusteT=()=>({frio:-2,calor:2})[sensacion()]||0;
 const termoTxt=()=>({frio:"Varias veces ha pasado frío con sus looks: abrígala algo más de lo que marca la temperatura.",calor:"Varias veces ha pasado calor con sus looks: vístela algo más fresca de lo que marca la temperatura."})[sensacion()]||"";
+/* v34: sus propios looks (hechos en el Armario) van primero y con más peso; luego, algún favorito de la estilista */
 function favTxt(ocas){
-  const fs=[...S.favs.values()].filter(l=>(l.piezas||[]).some(id=>S.prendas.has(id)))
-    .sort((a,b)=>(ocas.includes(b.ocasion)-ocas.includes(a.ocasion))||String(b.creado).localeCompare(String(a.creado))).slice(0,4);
-  return fs.length?`Looks que ha guardado como favoritos (reflejan su gusto: inspírate en su estilo y sus combinaciones de color, pero no repitas sus prendas; busca combinaciones nuevas):\n${fs.map(l=>`- «${l.titulo}»${l.ocasion?` (${l.ocasion})`:""}: ${nombres(l.piezas)}`).join("\n")}`:"";
+  const vale=l=>(l.piezas||[]).some(id=>S.prendas.has(id)), orden=(a,b)=>(ocas.includes(b.ocasion)-ocas.includes(a.ocasion))||String(b.creado).localeCompare(String(a.creado));
+  const todos=[...S.favs.values()].filter(vale), mios=todos.filter(l=>l.mio).sort(orden).slice(0,6), otros=todos.filter(l=>!l.mio).sort(orden).slice(0,mios.length>=4?2:4);
+  const linea=l=>`- ${l.ocasion?`(${l.ocasion}) `:""}${nombres(l.piezas)}`;
+  return juntar([
+    mios.length?`Looks que ha creado ELLA MISMA con su ropa. Son su gusto real y tu mejor guía: fíjate en cómo combina colores, en las proporciones y en qué calzado, bolso y complementos pone con cada cosa, y aplica ese mismo estilo a combinaciones nuevas. Puedes repetir alguna prenda suelta, pero no el look entero:\n${mios.map(linea).join("\n")}`:"",
+    otros.length?`Looks tuyos que guardó como favoritos (inspírate en su estilo, sin repetirlos):\n${otros.map(linea).join("\n")}`:""]);
 }
+/* v34: parejas buenas = prendas que ella ha juntado en sus propios looks. Suben en ↻ y al elegir joyas (sin IA) */
+function buenasParejas(){ const o=new Map();
+  S.favs.forEach(l=>{ if(!l.mio) return; const ps=(l.piezas||[]).filter(id=>S.prendas.has(id));
+    for(let i=0;i<ps.length;i++) for(let j=i+1;j<ps.length;j++){ const k=clavePar(ps[i],ps[j]); o.set(k,(o.get(k)||0)+1); } });
+  return o; }
+const afinidad=(id,resto,bp)=>resto.reduce((s,y)=>s+Math.min(2,bp.get(clavePar(id,y))||0),0);
 
 /* ---------- Pestañas ---------- */
 function setTab(t){
@@ -694,6 +719,7 @@ function renderAll(){
   if(S.tab==="favs") renderFavs();
   if(S.tab==="semana") renderSemana();
   if(S.tab==="ajustes") renderAjustes();
+  renderCrearBar();
 }
 
 /* ---------- ¿Qué me pongo? ---------- */
@@ -886,8 +912,12 @@ function seleccion(ocasiones,{fechas=[],excluir=[],vetadas=[],tmin=S.tmin,tmax=S
     out.push(...barajar(c,rnd)); // v31: dentro de cada categoría, en orden barajado
   }
   if(ancla&&S.prendas.has(ancla)) out.push(S.prendas.get(ancla));
-  const limpio=x=>String(x||"").replace(/[|\n]/g,"/"), K=claves();
-  return {texto:out.map(p=>[K.a(p.id),p.categoria,p.nombre,p.color,limpio(p.descripcion).slice(0,70),p.estilo,p.abrigo,p.formalidad,p.silueta,`${u30.get(p.id)||0}/${vistas.get(p.id)||0}`].map(limpio).join("|")).join("\n"),enviadas:out.length,total:S.prendas.size};
+  /* v32: lista compacta. Agrupada por categoría (la categoría ya no se repite en cada línea), sin estilo (la app ya ha filtrado
+     por estilo), color solo si no está en el nombre, detalle corto y usos solo si no son 0/0. Mismas prendas, menos de la mitad de tokens */
+  const K=claves(), grupos=new Map();
+  out.forEach(p=>{ if(!grupos.has(p.categoria)) grupos.set(p.categoria,[]); grupos.get(p.categoria).push(p); });
+  const texto=CATS.filter(([c])=>grupos.has(c)).map(([c])=>`[${CAT_CORTA[c]||c}]\n`+grupos.get(c).map(p=>filaPrenda(p,K,u30,vistas)).join("\n")).join("\n");
+  return {texto,enviadas:out.length,total:S.prendas.size};
 }
 function recientes(f,dias=3){
   const d=parse(f), out=new Set();
@@ -903,7 +933,7 @@ Cómo trabajas:
   · Antes de recurrir a la combinación más fácil (marino con negro), busca si hay una opción con más contraste o una armonía más bonita.
   · Regla 60-30-10: 60 % base (parte de abajo y chaqueta, normalmente neutros), 30 % secundario (parte de arriba, neutro o tono suave) y 10 % acento (zapatos, pañuelo o bolso, o la pieza protagonista).
   · Armonías, de más a menos habitual: neutros con un acento; monocromática (tonos de un mismo color); análoga (colores vecinos del círculo cromático, p. ej. granate y rosa palo); complementaria solo en el 10 % de acento (p. ej. marino con un toque cobre o camel).
-  · Un estampado ocupa el 30 % o el 10 %, nunca el 60 %, y solo uno por look.
+  · Un estampado ocupa el 30 % o el 10 %, nunca el 60 %, y solo uno por look, contando también zapatos, bolso y pañuelo: unas zapatillas de leopardo o una parka estampada ya son el estampado del look, y todo lo demás va liso.
 - Cuidas las proporciones y siluetas y el equilibrio de texturas.
 - Cada prenda puede traer su abrigo (fino, medio, grueso), su formalidad (1 muy informal, 5 de evento) y su silueta. Úsalos: el abrigo según la temperatura (con mucha diferencia entre mínima y máxima, capas que se puedan quitar); todas las piezas cerca de la formalidad ideal de la ocasión (como mucho un punto de diferencia entre ellas); y equilibra volúmenes (arriba ancho con abajo ceñido o recto, y al revés; corto con largo).
 - Adecuas el nivel de formalidad exactamente a la ocasión y la ropa a la temperatura y a la lluvia, con capas cuando hay mucha diferencia entre mínima y máxima.
@@ -911,7 +941,7 @@ Cómo trabajas:
 - Complementos (pañuelos, cinturones) solo si suman, uno como mucho. Las joyas no las eliges tú: las pone la app aparte, así que nunca incluyas joyas en las piezas ni las nombres en el título ni en la nota.
 - Un look completo lleva SIEMPRE parte de arriba y de abajo (o un vestido) y zapatos; además chaqueta o abrigo si el tiempo lo pide, y bolso cuando tenga sentido. Nunca propones un look al que le falte alguna de esas piezas. Tampoco uno al que le sobren: una sola prenda de cada tipo (nunca dos cárdigans, dos chaquetas, dos bolsos ni dos pares de zapatos) y como mucho dos capas de abrigo a la vez (por ejemplo cárdigan y abrigo). Dos prendas de arriba solo si una va abierta encima (cárdigan, chaleco, blazer) o es un jersey sobre una camisa o blusa; nunca un jersey con un top o una camiseta debajo que no se vería.
 - Conoces a tu clienta: tienes muy en cuenta lo que le ha gustado y lo que no le convenció otras veces, también las prendas que ella misma ha cambiado en tus looks.
-- Solo usas prendas de la lista que te dan, por su número (la primera columna).
+- Solo usas prendas de la lista que te dan, por su número (el que va al principio de cada línea).
 - Tus notas son breves y van al grano: dos o tres frases cortas, unas 50 palabras como mucho.
 Escribes en español de España, con un tono cercano y profesional.`;
 const ESTILO_DEF=""; // v23: tu estilo ya no va en el código (el repositorio es público); está guardado en el móvil y en la copia de seguridad
@@ -924,7 +954,24 @@ const pensar=()=>ls.get("kc.pensar",false)&&ls.get("kc.sinPensar","")!==S.modelo
 /* v30: Claude responde con números; aquí se traducen al id real de cada prenda */
 const limpiaPiezas=arr=>{ if(!Array.isArray(arr)) return []; const K=claves(); return [...new Set(arr.map(x=>K.id(x)))].filter(id=>S.prendas.has(id)); };
 const juntar=arr=>arr.filter(Boolean).join("\n");
-const CABECERA="nº|categoría|prenda|color|detalle|estilo|abrigo|formalidad 1-5|silueta|llevada 30 días/propuesta 7 días";
+const CABECERA="agrupadas por tipo; cada línea: número y prenda (color si no va en el nombre); detalle; a = abrigo (f fino, m medio, g grueso), f = formalidad 1-5, s = silueta; u = veces llevada en 30 días / propuesta en 7 días, si no aparece es 0/0";
+/* v32: una línea corta por prenda (ver seleccion) */
+const CAT_CORTA={abrigo:"chaquetas y abrigos",arriba:"arriba",abajo:"abajo y vestidos",zapatos:"zapatos",bolso:"bolsos",accesorio:"pañuelos y cinturones",joya:"joyas"};
+const limpioL=x=>String(x||"").replace(/[;\n\[\]]/g,",").replace(/\s+/g," ").trim();
+const raices=t=>sinTilde(t).split(/[^a-z]+/).filter(x=>x.length>2).map(x=>x.length>4?x.slice(0,-1):x); // "negra" y "negro" → "negr"
+function detalleCorto(p){ // solo la primera parte de los detalles, y nada si repite el nombre
+  const d=limpioL(p.descripcion).split(/[.,;:(]/)[0].trim(); if(!d) return "";
+  const n=sinTilde(p.nombre), w=raices(d).filter(x=>x.length>3);
+  return w.length&&w.every(x=>n.includes(x))?"":d.slice(0,40);
+}
+function filaPrenda(p,K,u30,vistas){
+  const n=sinTilde(p.nombre), col=limpioL(p.color), rc=raices(col);
+  const color=col&&!(rc.length&&rc.every(x=>n.includes(x)))?` (${col})`:"";
+  const a={fino:"f",medio:"m",grueso:"g"}[p.abrigo]||"";
+  const tags=[a?"a:"+a:"",p.formalidad?"f:"+p.formalidad:"",p.silueta?"s:"+limpioL(p.silueta).replace(/\s*,\s*/g,"/"):""].filter(Boolean).join(" ");
+  const u=u30.get(p.id)||0, v=vistas.get(p.id)||0;
+  return [`${K.a(p.id)} ${limpioL(p.nombre)}${color}`,detalleCorto(p),tags,u||v?`u:${u}/${v}`:""].filter(Boolean).join("; ");
+}
 
 /* Acierto: cuántas peticiones de look acaban en "Dejar preparado" y cuántas a la primera (sin pedir otro ni cambiar prendas) */
 const ACI_DEF=()=>({desde:ymd(new Date()),rondas:0,preparadas:0,primera:0});
@@ -983,7 +1030,7 @@ function faltaEnLook(ids){
   const f=[]; if(!vestido){ if(!hay("arriba")) f.push("parte de arriba"); if(!hay("abajo")) f.push("parte de abajo (pantalón o falda)"); } if(!hay("zapatos")) f.push("zapatos");
   return f;
 }
-const VARIEDAD_TXT="Variedad: la última columna de cada prenda es «veces llevada en 30 días / veces propuesta en 7 días». Cuando dos opciones encajen parecido, elige la menos usada y da oportunidades a las prendas con 0/0 (muchas son nuevas). No repitas por costumbre las mismas piezas, tampoco chaquetas, bolsos ni zapatos.";
+const VARIEDAD_TXT="Variedad: «u» es «veces llevada en 30 días / veces propuesta en 7 días» (si no aparece, 0/0). Cuando dos opciones encajen parecido, elige la menos usada y da oportunidades a las prendas sin «u» (muchas son nuevas). No repitas por costumbre las mismas piezas, tampoco chaquetas, bolsos ni zapatos.";
 const COHERENCIA_TXT="Decide primero las piezas. El título y la nota solo pueden mencionar prendas que estén en «piezas»; si nombras un complemento, inclúyelo. No incluyas ni nombres joyas: las pone la app.";
 
 /* ---------- v31: joyas elegidas por la app, sin IA ----------
@@ -996,15 +1043,16 @@ const mediaForm=ps=>{const fs=ps.map(p=>Number(p.formalidad)).filter(Boolean); r
 function ponerJoyas(ids,{f="",ocasion=S.ocasion,fija=null,vetadas=[],usadas=null}={}){
   const sin=ids.filter(id=>{const p=S.prendas.get(id);return p&&p.categoria!=="joya"});
   if(fija) return S.prendas.has(fija)?[...sin,fija]:sin;
-  const todas=ordenadas().filter(q=>q.categoria==="joya"&&!vetadas.includes(q.id)&&!(usadas&&(usadas.get(q.id)||0)>=2));
+  const todas=ordenadas().filter(q=>q.categoria==="joya"&&!vetadas.includes(q.id)&&!(usadas&&(usadas.get(q.id)||0)>=2)&&!chocaPareja(q.id,sin));
   if(!todas.length) return sin;
   const ps=sin.map(id=>S.prendas.get(id)), metales=new Set(ps.map(metalDe).filter(Boolean)), fm=mediaForm(ps);
   const estilos=new Set(ESTILO_OCAS[ocasion]||[]), uso=ultimoUso(), vistas=mostradas(), cerca=new Set(f?recientes(f,3):[]);
-  const rnd=azar(["joyas",f,ocasion,...sin].join("|"));
+  const rnd=azar(["joyas",f,ocasion,...sin].join("|")), bp=buenasParejas();
   const val=todas.map(q=>{ let s=0; const e=lista(q.estilo), fq=Number(q.formalidad), m=metalDe(q);
     if(e.length) s+=e.some(x=>estilos.has(x))?1:-2;
     if(fq&&fm) s-=Math.max(0,Math.abs(fq-fm)-.5);
     if(m&&metales.size&&!metales.has(m)) s-=2; // no mezclar oro y plata
+    s+=Math.min(2,afinidad(q.id,sin,bp)); // v34: la ha llevado así en sus propios looks
     if(cerca.has(q.id)) s-=3;                  // la llevó estos días
     s-=Math.min(3,vistas.get(q.id)||0)*.5;     // propuesta muchas veces esta semana
     if(usadas) s-=(usadas.get(q.id)||0)*2;
@@ -1028,7 +1076,7 @@ function alternativas(ids,id,f,ocasion){
   const resto=ids.filter(x=>x!==id), restoP=resto.map(x=>S.prendas.get(x)).filter(Boolean), enLook=new Set(ids);
   const fm=mediaForm(restoP.filter(q=>q.categoria!=="joya")), u30=usos30(), llev=new Set(recientes(f));
   const fam=familia(p), ta=p.categoria==="abajo"?tipoAbajo(p):"", estilos=new Set(ESTILO_OCAS[ocasion]||[]);
-  const coloresResto=new Set(restoP.flatMap(palabrasColor)), metales=new Set(restoP.filter(q=>q.categoria!=="joya").map(metalDe).filter(Boolean));
+  const bp=buenasParejas(), coloresResto=new Set(restoP.flatMap(palabrasColor)), metales=new Set(restoP.filter(q=>q.categoria!=="joya").map(metalDe).filter(Boolean));
   const faltabaAntes=faltaEnLook(ids).length;
   return ordenadas().filter(q=>q.categoria===p.categoria&&!enLook.has(q.id)).filter(q=>{
     if(q.categoria!=="joya"){ const l=lista(q.estacion); if(l.length&&!l.some(x=>est.has(x))) return false; }
@@ -1037,12 +1085,15 @@ function alternativas(ids,id,f,ocasion){
     if(q.categoria==="zapatos"&&t.lluvia!=null&&t.lluvia>=50&&!sinLluviaDelicado(q)) return false;
     const nuevo=[...resto,q.id];
     if(combiMal(nuevo).length||sobraEnLook(nuevo).length) return false;
+    if(chocaPareja(q.id,resto)) return false; // v33: pareja que no le gusta
+    if(esEstampado(q)&&resto.some(x=>esEstampado(S.prendas.get(x)))) return false; // v33: un solo estampado
     if(!faltabaAntes&&faltaEnLook(nuevo).length) return false; // p. ej. cambiar una falda por un vestido sí, pero no dejar el look cojo
     return true;
   }).map(q=>{ let s=0; const fq=Number(q.formalidad), e=lista(q.estilo);
     if(fq&&fm) s-=Math.abs(fq-fm)*1.5;
     if(e.length) s+=e.some(x=>estilos.has(x))?1:-1;
     if(fam&&familia(q)===fam) s+=1.5;
+    s+=Math.min(3,afinidad(q.id,resto,bp)*1.5); // v34: combina así en sus propios looks
     if(ta&&tipoAbajo(q)===ta) s+=1.5;
     if(q.categoria==="joya"){ const m=metalDe(q); if(m&&metales.size) s+=metales.has(m)?1:-2; }
     else { if(esNeutro(q)) s+=1; if(palabrasColor(q).some(w=>coloresResto.has(w))) s+=.5; }
@@ -1068,10 +1119,60 @@ async function aplicarCambio(nuevo){
   const piezas=(l.piezas||[]).map(x=>x===id?nuevo:x).filter(Boolean);
   const viejo=nombreDe(id).toLowerCase();
   anotarDiario("cambio",nuevo?`cambió ${viejo} por ${nombreDe(nuevo).toLowerCase()} en «${l.titulo}»`:`quitó ${viejo} de «${l.titulo}»`);
+  /* v33: aprende parejas. Solo al cambiar ropa (no joyas, que se cambian por variar) y sin contar las joyas del look */
+  const pv=S.prendas.get(id), aprendidas=nuevo&&pv&&pv.categoria!=="joya"?anotarParejas(id,(l.piezas||[]).filter(x=>x!==id&&(S.prendas.get(x)||{}).categoria!=="joya")):[];
   if(pr){ pr.opciones[pr.i]={...l,piezas}; pr.cambiado=true; renderLook(); }
   else { try{ await guardar("planes",{...plan,piezas}); }catch{ toast("No se ha podido guardar."); return; } }
-  toast(nuevo?"Cambiada":"Quitada del look");
+  toast(aprendidas.length?`Apuntado: ${viejo} no va con ${aprendidas.map(nombreDe).join(", ").toLowerCase()}. Puedes quitarlo en Ajustes.`:nuevo?"Cambiada":"Quitada del look");
 }
+
+/* ---------- v33: parejas de prendas que no le gustan juntas (aprendidas de sus cambios) ----------
+   Cada vez que cambias una prenda con ↻, se anota junto a qué otras prendas estaba. Si cambias la misma prenda
+   dos veces estando con la misma otra, esa pareja queda como «no van juntas» y la app no vuelve a juntarlas. */
+const PAR_MIN=2;
+const parejas=()=>{const o=ls.get("kc.parejas",{});return o&&typeof o==="object"&&!Array.isArray(o)?o:{}};
+const clavePar=(a,b)=>a<b?a+"|"+b:b+"|"+a;
+function anotarParejas(fuera,resto){
+  const o=parejas(), nuevas=[];
+  resto.forEach(y=>{ const k=clavePar(fuera,y); o[k]=(o[k]||0)+1; if(o[k]===PAR_MIN) nuevas.push(y); });
+  const ks=Object.keys(o); if(ks.length>400) ks.sort((a,b)=>o[a]-o[b]).slice(0,ks.length-400).forEach(k=>delete o[k]);
+  ls.set("kc.parejas",o); return nuevas;
+}
+const parejasNo=()=>Object.entries(parejas()).filter(([,n])=>n>=PAR_MIN).map(([k])=>k.split("|")).filter(([a,b])=>S.prendas.has(a)&&S.prendas.has(b));
+const parejaMal=ids=>{const s=new Set(ids);return parejasNo().filter(([a,b])=>s.has(a)&&s.has(b))};
+const chocaPareja=(id,resto)=>{const o=parejas();return resto.some(y=>(o[clavePar(id,y)]||0)>=PAR_MIN)};
+const parejasTxt=(K=claves())=>{const l=parejasNo().slice(0,40);return l.length?`Prendas que NO le gustan juntas (nunca las pongas en el mismo look): ${l.map(([a,b])=>`${K.a(a)} con ${K.a(b)}`).join("; ")}.`:""};
+
+/* ---------- v33: un solo estampado por look (zapatos, bolso y pañuelo incluidos; las joyas no cuentan) ---------- */
+const ESTAMP=/\b(leopardo|cebra|serpiente|piton|animal|estampad[oa]s?|cuadros?|cuadritos|rayas?|flores|floral(es)?|lunares|topos|buhos?|pata de gallo|principe de gales|cachemir|paisley|tartan|vichy|geometric[oa]s?|tie ?dye|camuflaje|print)\b/;
+function esEstampado(p){
+  if(!p||p.categoria==="joya") return false;
+  const t=sinTilde([p.nombre,p.descripcion,p.color,p.tono].join(" ")).replace(/\b(sin|no)\s+(estampad\w*|rayas?|cuadros?|print)\b/g,"");
+  return ESTAMP.test(t);
+}
+const estampados=ids=>ids.map(id=>S.prendas.get(id)).filter(esEstampado);
+/* Arregla el look por código, sin IA: cambia lo que sobra (primero complementos, bolso y zapatos; nunca la prenda que eligió ella)
+   por la alternativa que mejor encaja. Devuelve ok:false si no hay forma */
+const PRIO_CAMBIO=["accesorio","bolso","zapatos","abrigo","arriba","abajo"];
+function arreglarLook(ids,f,ocasion,ancla){
+  let cur=ids.slice(); const cambios=[];
+  for(let k=0;k<4;k++){
+    const em=estampados(cur), pm=parejaMal(cur);
+    let culpables=em.length>1?em.map(p=>p.id):pm.length?pm[0]:null;
+    if(!culpables) break;
+    culpables=culpables.filter(id=>id!==ancla).sort((a,b)=>PRIO_CAMBIO.indexOf(S.prendas.get(a).categoria)-PRIO_CAMBIO.indexOf(S.prendas.get(b).categoria));
+    let hecho=false;
+    for(const id of culpables){
+      const p=S.prendas.get(id), alt=alternativas(cur,id,f,ocasion)[0];
+      if(alt){ cur=cur.map(x=>x===id?alt.id:x); cambios.push(`${p.nombre.toLowerCase()} por ${alt.nombre.toLowerCase()}`); hecho=true; break; }
+      if(["accesorio","bolso"].includes(p.categoria)){ cur=cur.filter(x=>x!==id); cambios.push(`quitado ${p.nombre.toLowerCase()}`); hecho=true; break; }
+    }
+    if(!hecho) return {ids,cambios:[],ok:false};
+  }
+  const ok=estampados(cur).length<2&&!parejaMal(cur).length;
+  return {ids:ok?cur:ids,cambios:ok?cambios:[],ok};
+}
+const avisoArreglo=c=>`(La app ha cambiado ${c.join(" y ")} para no juntar dos estampados ni prendas que no te gustan juntas.)`;
 
 /* ---------- v31: repetir looks favoritos sin IA ----------
    Solo los que encajan con el tiempo de ese día, con una ocasión parecida, sin prendas llevadas estos días
@@ -1081,7 +1182,7 @@ function favApto(l,f){
   const todas=(l.piezas||[]), ids=todas.filter(id=>S.prendas.has(id)); if(!ids.length||ids.length<todas.length) return false; // falta alguna prenda (borrada)
   if(faltaEnLook(ids).length) return false;
   const t=tempDe(f), aj=ajusteT(), est=estacionesValidas(t.min+aj,t.max+aj), media=(t.min+t.max)/2+aj;
-  if(noAbriga(ids,t).length||combiMal(ids).length) return false;
+  if(noAbriga(ids,t).length||(!l.mio&&combiMal(ids).length)) return false; // v34: sus looks se respetan; solo se mira el tiempo
   for(const p of ids.map(id=>S.prendas.get(id))){
     if(p.categoria==="joya") continue;
     const e=lista(p.estacion); if(e.length&&!e.some(x=>est.has(x))) return false;
@@ -1101,7 +1202,7 @@ function favoritosPara(f,ocasion,{excluir=[]}={}){
     return {l,s,u:u||"0000",r:rnd()}; }).sort((a,b)=>b.s-a.s||(a.u<b.u?-1:a.u>b.u?1:a.r-b.r)).map(x=>x.l);
 }
 const conJoyas=(l,f,ocasion,usadas=null)=>{ const ids=(l.piezas||[]).filter(id=>S.prendas.has(id));
-  return ids.some(id=>S.prendas.get(id).categoria==="joya")?ids:ponerJoyas(ids,{f,ocasion,usadas}); };
+  return l.mio||ids.some(id=>S.prendas.get(id).categoria==="joya")?ids:ponerJoyas(ids,{f,ocasion,usadas}); }; // v34: sus looks, tal cual
 function proponerFavorito(f){
   const pr=S.propuesta[f]; let vistos=pr&&pr.local?pr.vistosFav:[];
   let opts=favoritosPara(f,S.ocasion,{excluir:vistos});
@@ -1147,7 +1248,7 @@ async function pedirLook(f,ocasion,{evitar=[],vetadas=[],motivo="",ancla=null,in
 `Ocasión: ${ocasion} (formalidad ideal ${FORM_OCAS[ocasion]||"3"}). ${tiempoTxt(t)}`, termoTxt(),
 paR?`Quiere llevar sí o sí: ${paR.nombre} (nº ${K.a(paR.id)}). El look debe construirse alrededor de esa prenda.`:"",
 paJ?`Llevará su ${paJ.nombre.toLowerCase()}${paJ.color?` (${paJ.color})`:""}: elige un look de ropa con el que combine bien.`:"",
-REGLAS_TXT(), noCombiTxt(), favTxt([ocasion]), diarioTxt(), VARIEDAD_TXT, COHERENCIA_TXT,
+REGLAS_TXT(), noCombiTxt(), parejasTxt(K), favTxt([ocasion]), diarioTxt(), VARIEDAD_TXT, COHERENCIA_TXT,
 animalReciente(f)&&!(pa&&esAnimal(pa))?"Estos días ya ha llevado estampado animal: hoy evítalo.":"",
 notaTxt("notaHoy"),
 motivo?`Del look que acaba de ver no le convenció: ${motivo}. Tenlo muy en cuenta.`:"",
@@ -1166,6 +1267,8 @@ evitarSinJoyas.length?`Debe ser claramente distinto del look que acaba de ver ($
       colMal=combiMal(ids(r)); if(colMal.length) throw new ClaudeError("colores",colMal.join(" y "));
       if(sobraEnLook(ids(r)).length) r={...r,piezas:aliasDe(recortarSobrantes(ids(r),paR?paR.id:null),claves())}; // último recurso: se quita lo que sobra
     }
+    { const fx=arreglarLook(ids(r),f,ocasion,paR?paR.id:null); // v33: dos estampados o pareja que no le gusta → lo arregla la app, sin otra llamada
+      if(fx.cambios.length) r={...r,piezas:fx.ids,nota:(String(r.nota||"")+" "+avisoArreglo(fx.cambios)).trim()}; }
     const arr=r&&r.piezas?[r]:(Array.isArray(r&&r.looks)?r.looks:[]), opciones=[];
     for(const x of arr){
       let piezas=limpiaPiezas(x&&x.piezas).filter(id=>S.prendas.get(id).categoria!=="joya"); if(paR&&!piezas.includes(paR.id)) piezas.unshift(paR.id);
@@ -1187,6 +1290,7 @@ evitarSinJoyas.length?`Debe ser claramente distinto del look que acaba de ver ($
 function renderArmario(){
   const all=ordenadas();
   $("#cuentaPrendas").textContent=all.length?`${all.length} prendas`:"";
+  $("#btnCrear").hidden=!!S.crear||!all.length; $("#crearAviso").hidden=!S.crear;
   $("#catChips").innerHTML=[["todo","Todo"],...CATS].map(([k,n])=>{
     const c=k==="todo"?all.length:all.filter(p=>p.categoria===k).length;
     return `<button type="button" class="chip" data-act="cat" data-v="${k}" aria-pressed="${S.cat===k}">${esc(n)} <span class="count">${c}</span></button>`}).join("");
@@ -1198,7 +1302,8 @@ function renderGrid(){
   if(!S.loaded){g.innerHTML=`<p class="muted">Abriendo…</p>`;return}
   if(!S.prendas.size){g.innerHTML=`<div class="card empty"><b>Aún no hay prendas</b><div class="row" style="justify-content:center"><button class="btn gold" type="button" data-act="tab" data-v="anadir">Añadir fotos</button><button class="btn" type="button" data-act="tab" data-v="ajustes">Restaurar copia</button></div></div>`;return}
   if(!list.length){g.innerHTML=`<p class="muted">Nada coincide con “${esc(S.q)}”.</p>`;return}
-  g.innerHTML=`<div class="grid">${list.map(p=>`<button type="button" class="tile" data-act="ficha" data-id="${esc(p.id)}"><span class="thumb">${visual(p)}<span class="tag">Nº ${p.n}</span></span><span class="nm">${esc(p.nombre)}</span></button>`).join("")}</div>`;
+  const sel=new Set(S.crear?S.crear.ids:[]); // v34: en modo «Crear look», tocar marca la prenda
+  g.innerHTML=`<div class="grid">${list.map(p=>`<button type="button" class="tile${sel.has(p.id)?" sel":""}" data-act="${S.crear?"selPrenda":"ficha"}" data-id="${esc(p.id)}" ${S.crear?`aria-pressed="${sel.has(p.id)}"`:""}><span class="thumb">${visual(p)}<span class="tag">Nº ${p.n}</span>${sel.has(p.id)?`<span class="ok">✓</span>`:""}</span><span class="nm">${esc(p.nombre)}</span></button>`).join("")}</div>`;
 }
 
 /* ---------- Formulario de etiquetas ---------- */
@@ -1316,7 +1421,8 @@ function pintarFicha(p,datos){
       <div class="row"><button class="btn sm" type="button" data-act="cambiarFoto">${foto?"Cambiar foto":"Añadir foto"}</button>
       ${f.foto&&hayClave()?`<button class="btn sm gold" type="button" data-act="reetiquetar">Etiquetar con la foto</button>`:""}</div>
       <span id="fichaEstado"></span></div></div>
-    ${hayClave()?`<button class="btn gold" type="button" data-act="lookCon">✨ Créame un look con ella para ${S.dia==="manana"?"mañana":"hoy"}</button>`:""}
+    <div class="row">${hayClave()?`<button class="btn gold" type="button" data-act="lookCon">✨ Créame un look con ella para ${S.dia==="manana"?"mañana":"hoy"}</button>`:""}
+      <button class="btn" type="button" data-act="crearCon">✎ Crear yo un look con ella</button></div>
     ${campos("fi",d)}
     ${f.confirmar?`<div class="banner"><span>¿Eliminar esta prenda del armario?</span><span class="row"><button class="btn sm danger" type="button" data-act="eliminarSi">Sí, eliminar</button><button class="btn sm ghost" type="button" data-act="eliminarNo">Cancelar</button></span></div>`:""}
     <div class="row" style="justify-content:space-between"><span class="row"><button class="btn primary" type="button" data-act="guardarFicha">Guardar</button><button class="btn ghost" type="button" data-act="cerrar">Cerrar</button></span>
@@ -1330,11 +1436,54 @@ async function guardarFav(l){
   catch{ toast("No se ha podido guardar."); }
 }
 function renderFavs(){
-  const el=$("#favList"), list=[...S.favs.values()].sort((a,b)=>String(b.creado).localeCompare(String(a.creado)));
-  if(!list.length){el.innerHTML=`<div class="card empty"><b>Sin favoritos todavía</b><span class="muted">Cuando un look te guste, pulsa ♡ Favorito para tenerlo a mano.</span></div>`;return}
-  el.innerHTML=list.map(l=>lookCard(l,{estado:"",acciones:
+  const todos=[...S.favs.values()].sort((a,b)=>String(b.creado).localeCompare(String(a.creado))), nm=todos.filter(l=>l.mio).length;
+  if(S.favFiltro==="mios"&&!nm) S.favFiltro="todos";
+  $("#favFiltro").hidden=!nm;
+  $("#favFiltro").innerHTML=[["todos",`Todos ${todos.length}`],["mios",`Hechos por ti ${nm}`]].map(([k,t])=>`<button type="button" class="chip" data-act="favFiltro" data-v="${k}" aria-pressed="${(S.favFiltro||"todos")===k}">${esc(t)}</button>`).join("");
+  const el=$("#favList"), list=S.favFiltro==="mios"?todos.filter(l=>l.mio):todos;
+  if(!list.length){el.innerHTML=`<div class="card empty"><b>Sin favoritos todavía</b><span class="muted">Cuando un look te guste, pulsa ♡ Favorito. O crea tus propios looks en el Armario con “＋ Crear look”: la estilista aprende de ellos.</span>
+    <button class="btn gold sm" type="button" data-act="crearLook">＋ Crear look</button></div>`;return}
+  el.innerHTML=list.map(l=>lookCard(l,{estado:l.mio?`<span class="status ok">✎ Hecho por ti</span>`:"",acciones:
     `<button class="btn primary sm" type="button" data-act="favManana" data-id="${esc(l.id)}">Preparar para mañana</button>
+     ${l.mio?`<button class="btn sm" type="button" data-act="favEditar" data-id="${esc(l.id)}">Editar</button>`:""}
      <button class="btn ghost sm" type="button" data-act="favQuitar" data-id="${esc(l.id)}">Quitar</button>`})).join("");
+}
+
+/* ---------- v34: crear sus propios looks en el Armario ----------
+   «＋ Crear look» pone el armario en modo selección: tocas prendas, aparecen en la barra de abajo y guardas.
+   Se guardan en Favoritos con la marca «mio» */
+function empezarLook(ids=[],editId=null){
+  const l=editId&&S.favs.get(editId);
+  S.crear={ids:ids.filter(id=>S.prendas.has(id)),editId,ocasion:l?l.ocasion||S.ocasion:S.ocasion,titulo:l?l.titulo:""};
+  if(S.tab!=="armario") setTab("armario"); else renderAll();
+}
+function salirCrear(){ S.crear=null; renderAll(); }
+function renderCrearBar(){
+  const bar=$("#crearBar"), on=!!S.crear&&S.tab==="armario";
+  document.body.classList.toggle("creando",on); bar.hidden=!on; if(!on) return;
+  const ps=porLook(S.crear.ids);
+  bar.querySelector(".in").innerHTML=`<div class="row" style="justify-content:space-between;gap:8px"><b style="font-size:14px">${S.crear.editId?"Editando tu look":"Tu look"} · ${ps.length} ${ps.length===1?"prenda":"prendas"}</b>
+      <span class="row" style="gap:6px"><button class="btn ghost sm" type="button" data-act="crearCancelar">Cancelar</button><button class="btn gold sm" type="button" data-act="crearGuardar" ${ps.length<2?"disabled":""}>Guardar look</button></span></div>
+    ${ps.length?`<div class="strip">${ps.map(p=>`<button type="button" class="thumb mini-sel" data-act="selPrenda" data-id="${esc(p.id)}" aria-label="Quitar ${esc(p.nombre)}">${visual(p)}<span class="x">✕</span></button>`).join("")}</div>`:`<span class="muted" style="font-size:13px">Toca las prendas de tu look. Usa las categorías de arriba para ir de una a otra.</span>`}`;
+}
+function hojaGuardarLook(){
+  const c=S.crear; if(!c) return; const falta=faltaEnLook(c.ids);
+  S.ficha=null; S.cambio=null;
+  $("#sheetPanel").innerHTML=`<div style="display:grid;gap:4px"><span class="eyebrow">${c.editId?"Editar tu look":"Guardar tu look"}</span><h2>¿Para qué ocasión es?</h2></div>
+    <div class="chips" id="crearOcas">${OCAS.map(o=>`<button type="button" class="chip" data-act="crearOcasion" data-v="${esc(o)}" aria-pressed="${o===c.ocasion}">${esc(o)}</button>`).join("")}</div>
+    <div class="fields"><label class="full">Nombre (opcional)<input id="crearTitulo" maxlength="80" value="${esc(c.titulo)}" placeholder="Ej.: Marino y camel de oficina"></label></div>
+    <div class="strip">${porLook(c.ids).map(p=>`<span class="thumb">${visual(p)}</span>`).join("")}</div>
+    ${falta.length?`<p class="hint">A este look le falta ${esc(falta.join(" y "))}. Puedes guardarlo igual, pero solo los looks completos se usan para “Repetir un favorito” y “Rellenar con favoritos”.</p>`:""}
+    <div class="row"><button class="btn primary" type="button" data-act="crearConfirmar">Guardar</button><button class="btn ghost" type="button" data-act="cerrar">Seguir eligiendo</button></div>`;
+  $("#sheet").hidden=false;
+}
+async function guardarLookPropio(){
+  const c=S.crear; if(!c) return;
+  const t=(($("#crearTitulo")||{}).value||"").trim(), prev=c.editId&&S.favs.get(c.editId);
+  const titulo=t||`${c.ocasion}: ${porLook(c.ids).filter(p=>["arriba","abajo"].includes(p.categoria)).map(p=>p.nombre.toLowerCase()).join(" y ")||"mi look"}`.slice(0,80);
+  try{ await guardar("favoritos",{...(prev||{}),id:prev?prev.id:"f"+Date.now().toString(36),titulo,piezas:c.ids.slice(),nota:prev?prev.nota||"":"",ocasion:c.ocasion,mio:true,creado:prev?prev.creado:new Date().toISOString()});
+    cerrarFicha(); S.crear=null; S.favFiltro="mios"; setTab("favs"); toast(prev?"Look actualizado":"Look guardado. La estilista aprenderá de él"); }
+  catch{ toast("No se ha podido guardar."); }
 }
 
 /* ---------- Semana ---------- */
@@ -1374,7 +1523,7 @@ async function planificar(dias,reintento=false){
 `Planifica un look por día usando SOLO prendas de esta lista, por su número. Ya está preseleccionada para las ocasiones y el tiempo.
 Días a planificar:
 ${dias.map(f=>`- ${f} (${largo(f)}): ${ocasDia(f)} (formalidad ideal ${FORM_OCAS[ocasDia(f)]||"3"}). ${tiempoTxt(tempDe(f))}`).join("\n")}`,
-termoTxt(), REGLAS_TXT(), noCombiTxt(), favTxt(ocs), diarioTxt(), VARIEDAD_TXT, COHERENCIA_TXT,
+termoTxt(), REGLAS_TXT(), noCombiTxt(), parejasTxt(K), favTxt(ocs), diarioTxt(), VARIEDAD_TXT, COHERENCIA_TXT,
 "Reparte bien: no repitas la misma parte de arriba en la semana y evita repetir parte de abajo en días seguidos. Ninguna prenda (tampoco chaquetas, bolsos ni zapatos) más de 2 veces en la semana, contando los días ya decididos. Como mucho uno o dos looks de la semana con estampado animal.",
 notaTxt("notaSem"),
 fijos.length?`Estos días ya están decididos, tenlos en cuenta para no repetir:\n${fijos.join("\n")}`:"",
@@ -1390,13 +1539,15 @@ fijos.length?`Estos días ya están decididos, tenlos en cuenta para no repetir:
       if(sobraEnLook(piezas).length) piezas=recortarSobrantes(piezas,null); // v26: fuera lo que sobra (dos del mismo tipo, demasiadas capas)
       if(noAbriga(piezas,tempDe(f)).length){ frios++; pendientes.push(f); continue; }
       if(combiMal(piezas).length){ colores++; pendientes.push(f); continue; } // v29: colores que no le gustan juntos // v28: cada día con SU temperatura
+      { const fx=arreglarLook(piezas,f,ocasDia(f),null); if(!fx.ok){ colores++; pendientes.push(f); continue; } // v33: estampados y parejas
+        if(fx.cambios.length){ piezas=fx.ids; x.nota=(String(x.nota||"")+" "+avisoArreglo(fx.cambios)).trim(); } }
       if(piezas.some(id=>(cuenta.get(id)||0)>=2)){ repes++; pendientes.push(f); continue; } // v24: ninguna prenda más de 2 veces en la semana
       piezas=ponerJoyas(piezas,{f,ocasion:ocasDia(f),usadas:cuenta}); // v31: la joya la pone la app, sin repetir más de 2 veces en la semana
       piezas.forEach(id=>cuenta.set(id,(cuenta.get(id)||0)+1));
       await guardar("planes",{id:f,fecha:f,ocasion:ocasDia(f),titulo:String(x.titulo||"Look").slice(0,80),piezas,nota:recortaNota(x.nota)}); n++;
     }
     if(!n&&!repes&&!frios&&!colores) $("#semErr").innerHTML=`<p class="err">La propuesta no encajaba con tu armario. Prueba otra vez.</p>`;
-    else if((repes||frios||colores)&&reintento){ const k=repes+frios+colores, por=[repes?"repetía alguna prenda por tercera vez esta semana":"",frios?"no abrigaba lo suficiente para el frío":"",colores?"juntaba colores que no te gustan":""].filter(Boolean).join(" o "); $("#semErr").innerHTML=`<p class="muted">${k===1?"Un día se ha quedado":`${k} días se han quedado`} sin plan porque ${por}. Pulsa “Sugerir” en ese día.</p>`; }
+    else if((repes||frios||colores)&&reintento){ const k=repes+frios+colores, por=[repes?"repetía alguna prenda por tercera vez esta semana":"",frios?"no abrigaba lo suficiente para el frío":"",colores?"juntaba colores, estampados o prendas que no te gustan juntos":""].filter(Boolean).join(" o "); $("#semErr").innerHTML=`<p class="muted">${k===1?"Un día se ha quedado":`${k} días se han quedado`} sin plan porque ${por}. Pulsa “Sugerir” en ese día.</p>`; }
   }catch(e){ const m=errMsg(e); if(m) $("#semErr").innerHTML=`<p class="err">${esc(m)}</p>`; }
   finally{ S.semBusy=null; renderSemana(); }
   // v25: en vez de dejar el día vacío, se pide un look alternativo para esos días (una vez, ~1 céntimo)
@@ -1422,6 +1573,7 @@ function renderAjustes(){
   $("#diario").innerHTML=(sen?`<li><span>🌡️ ${sen==="frio"?"Eres algo friolera: te abriga un poco más":"Eres algo calurosa: te viste un poco más fresca"}</span></li>`:"")+
     (di.length?di.map((x,i)=>`<li><span>${x.t==="est"?`<span class="estrellas mini">${estrellasTxt(x.n||0)}</span> ${esc(x.txt)}`:x.t==="si"?`👍 Eligió ${esc(x.txt)}`:x.t==="cambio"?`🔄 ${esc(mayus(x.txt))}`:`👎 No le convenció ${esc(x.txt)}`}</span><button class="btn ghost sm" type="button" data-act="diarioQuita" data-v="${i}" aria-label="Olvidar esto">✕</button></li>`).join(""):`<li class="muted">Aún nada. Aprenderá en cuanto dejes looks preparados, los puntúes, cambies prendas o le digas qué no te convence.</li>`);
   $("#btnDiarioBorrar").hidden=!di.length;
+  const pj=parejasNo(); $("#parejaLista").innerHTML=pj.length?pj.map(([a,b])=>`<li><span>✕ ${esc(nombreDe(a))} con ${esc(nombreDe(b))}</span><button class="btn ghost sm" type="button" data-act="parQuitar" data-v="${esc(clavePar(a,b))}" aria-label="Quitar">Quitar</button></li>`).join(""):`<li class="muted">Aún ninguna.</li>`;
   const nc=noCombi(); $("#noCombiLista").innerHTML=nc.length?nc.map((x,i)=>`<li><span>✕ ${esc(x.a)} con ${esc(x.b)}</span><button class="btn ghost sm" type="button" data-act="ncQuitar" data-v="${i}" aria-label="Quitar">Quitar</button></li>`).join(""):`<li class="muted">Aún ninguna.</li>`;
   const ac=ls.get("kc.acierto",null)||ACI_DEF(), pc=(x,y)=>y?Math.round(x*100/y)+" %":"–";
   $("#acierto").innerHTML=ac.rondas?`<p style="font:500 22px var(--f-mono);font-variant-numeric:tabular-nums">${pc(ac.primera,ac.rondas)} a la primera</p>
@@ -1445,7 +1597,7 @@ async function cargarCatalogo(){
   await DB.putMany("prendas",nuevas); nuevas.forEach(p=>S.prendas.set(p.id,p)); renderAll(); toast(`${nuevas.length} prendas cargadas`);
 }
 async function exportar(){
-  const datos={app:"kekas-closet",version:1,fecha:new Date().toISOString(),prendas:await DB.all("prendas"),planes:await DB.all("planes"),favoritos:await DB.all("favoritos"),diario:ls.get("kc.diario",[]),estilo:ls.get("kc.estilo",null),noCombi:noCombi()};
+  const datos={app:"kekas-closet",version:1,fecha:new Date().toISOString(),prendas:await DB.all("prendas"),planes:await DB.all("planes"),favoritos:await DB.all("favoritos"),diario:ls.get("kc.diario",[]),estilo:ls.get("kc.estilo",null),noCombi:noCombi(),parejas:parejas()};
   const url=URL.createObjectURL(new Blob([JSON.stringify(datos)],{type:"application/json"}));
   const a=document.createElement("a"); a.href=url; a.download=`kekas-closet-${ymd(new Date())}.json`; document.body.append(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),5000); toast("Copia descargada");
@@ -1456,6 +1608,7 @@ async function importar(file){
     if(d.app!=="kekas-closet") throw 0;
     for(const s of STORES){ const arr=Array.isArray(d[s])?d[s].filter(o=>o&&typeof o.id==="string"):[]; if(arr.length) await DB.putMany(s,arr); }
     if(Array.isArray(d.noCombi)) d.noCombi.forEach(x=>x&&anadirNoCombi(x.a,x.b));
+    if(d.parejas&&typeof d.parejas==="object"){ const o=parejas(); Object.entries(d.parejas).forEach(([k,n])=>{ if(/^[^|]+\|[^|]+$/.test(k)&&Number.isFinite(n)) o[k]=Math.max(o[k]||0,n); }); ls.set("kc.parejas",o); }
     if(typeof d.estilo==="string"&&d.estilo.trim()) ls.set("kc.estilo",d.estilo.slice(0,1500));
     if(Array.isArray(d.diario)&&d.diario.length) ls.set("kc.diario",d.diario.filter(x=>x&&typeof x.txt==="string").slice(0,20));
     await cargarTodo(); toast("Copia restaurada");
@@ -1508,6 +1661,15 @@ document.addEventListener("click",async ev=>{
     case "cat": S.cat=v; renderArmario(); break;
     case "pick": b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true"); break;
     case "ficha": abrirFicha(b.dataset.id); break;
+    case "crearLook": empezarLook(); break;
+    case "crearCon": { const id=S.ficha&&S.ficha.id; cerrarFicha(); if(id) empezarLook([id]); break; }
+    case "favEditar": { const l=S.favs.get(b.dataset.id); if(l) empezarLook(l.piezas||[],l.id); break; }
+    case "favFiltro": S.favFiltro=v; renderFavs(); break;
+    case "selPrenda": if(S.crear){ const id=b.dataset.id; alternar(S.crear.ids,id); renderGrid(); renderCrearBar(); } break;
+    case "crearCancelar": salirCrear(); break;
+    case "crearGuardar": if(S.crear&&S.crear.ids.length>=2) hojaGuardarLook(); break;
+    case "crearOcasion": if(S.crear){ S.crear.ocasion=v; const t=$("#crearTitulo"); S.crear.titulo=t?t.value:S.crear.titulo; document.querySelectorAll("#crearOcas .chip").forEach(c=>c.setAttribute("aria-pressed",c.dataset.v===v)); } break;
+    case "crearConfirmar": await guardarLookPropio(); break;
     case "cerrar": cerrarFicha(); break;
     case "lookCon": { const id=S.ficha&&S.ficha.id; if(!id) break;
       if(S.busy){toast("Espera, la estilista está con otro look");break}
@@ -1539,6 +1701,7 @@ document.addEventListener("click",async ev=>{
     case "diarioQuita": { const d=ls.get("kc.diario",[]); d.splice(Number(v),1); ls.set("kc.diario",d); renderAjustes(); break; }
     case "aciertoReset": ls.del("kc.acierto"); renderAjustes(); toast("Contador a cero"); break;
     case "ncAnadir": { if(anadirNoCombi($("#ncA").value,$("#ncB").value)){ $("#ncA").value=""; $("#ncB").value=""; toast("Combinación apuntada"); renderAjustes(); } else toast("Escribe dos colores distintos (o ya estaba apuntada)"); break; }
+    case "parQuitar": { const o=parejas(); delete o[v]; ls.set("kc.parejas",o); renderAjustes(); toast("Quitada"); break; }
     case "ncQuitar": { const l=noCombi(); l.splice(Number(v),1); ls.set("kc.noCombi",l); renderAjustes(); break; }
     case "diarioBorrar": ls.del("kc.diario"); renderAjustes(); toast("La estilista empieza de cero"); break;
     case "verClave": { const i=$("#clave"); i.type=i.type==="password"?"text":"password"; b.textContent=i.type==="password"?"Ver":"Ocultar"; break; }
