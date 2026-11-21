@@ -66,7 +66,10 @@ header.top{padding-block:14px 0}
 @keyframes cc{0%,100%{fill:var(--gold);opacity:.45}33%{fill:var(--cc1);opacity:1}66%{fill:var(--cc2);opacity:1}}
 @media (prefers-reduced-motion:reduce){.band .tw,.band .tw2,.band .cc{animation:none;opacity:.8}}
 main{padding-block:18px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom,0px))}
-section[data-view]{display:grid;gap:16px}
+section[data-view]{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+/* v36: nada puede ensanchar la pantalla (antes las dos casillas de color empujaban todo Ajustes hacia la derecha) */
+section[data-view]>*,.card>*{min-width:0;max-width:100%}
+.card{grid-template-columns:minmax(0,1fr)}
 h2{font:600 22px/1.15 var(--f-display);margin:0;text-wrap:balance}
 h3.sub{font:600 17px var(--f-display);margin:0}
 .eyebrow{font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
@@ -159,10 +162,10 @@ nav.bar .add[aria-current="page"] span.ring{background:var(--gold);color:var(--o
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom,0px));z-index:50;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;max-width:calc(100% - 32px)}
 .empty{text-align:center;display:grid;gap:10px;justify-items:center;padding-block:24px}
 .keyrow{display:flex;gap:8px}
-.keyrow input{flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-family:var(--f-mono);font-size:13px}
+.keyrow input{flex:1 1 0;min-width:0;width:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-family:var(--f-mono);font-size:13px}
 .nota-box{display:grid;gap:6px}
 .nota-in{display:flex;gap:6px;align-items:flex-start}
-.nota-in textarea{flex:1;min-width:0;padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font-size:14px;resize:vertical}
+.nota-in textarea{flex:1 1 0;min-width:0;width:0;padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font-size:14px;resize:vertical}
 .chips.mini .chip{padding:4px 10px;font-size:12.5px;color:var(--muted)}
 .set select{padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);width:100%}
 /* v9: tres propuestas, diario de gustos y tiempo */
@@ -349,7 +352,7 @@ body.creando main{padding-bottom:calc(var(--nav-h) + 150px + env(safe-area-inset
     </div>
     <div class="card">
       <h3 class="sub">Combinaciones que no me gustan</h3>
-      <p class="muted" style="font-size:14px">La estilista no las usará nunca juntas. Escribe los colores tal como aparecen en tus prendas (p. ej. “marino” y “negro”). También se añaden al marcar “El color” en “¿Qué no te convence?”.</p>
+      <p class="muted" style="font-size:14px">La estilista no las usará nunca juntas en la ropa de debajo, los zapatos, el bolso ni los complementos. La chaqueta o abrigo de encima no cuenta: puede ser de cualquier color. Escribe los colores tal como aparecen en tus prendas (p. ej. “marino” y “negro”). También se añaden al marcar “El color” en “¿Qué no te convence?”.</p>
       <ul class="diario" id="noCombiLista"></ul>
       <p class="muted" style="font-size:14px;margin-top:4px"><b>Prendas que no van juntas.</b> Se apuntan solas cuando cambias con ↻ la misma prenda dos veces estando con otra. Quita las que no sean verdad.</p>
       <ul class="diario" id="parejaLista"></ul>
@@ -549,7 +552,7 @@ async function pedirClaude(texto,op={}){
 }
 /* Gasto estimado: tokens reales que devuelve la API × precio del modelo ($ por millón).
    v30: escribir en la caché cuesta 1,25 veces la entrada normal; leer de ella, 0,1 veces */
-const APP_V="v34";
+const APP_V="v36";
 const PRECIO={"claude-sonnet-5-5":[2,10],"claude-haiku-5-5":[0.1,0.5]};
 const mesActual=()=>ymd(new Date()).slice(0,7);
 function anotarUso(u){
@@ -754,20 +757,23 @@ function anadirNoCombi(a,b){ a=String(a||"").trim().toLowerCase().slice(0,40); b
   if(!a||!b||sinTilde(a)===sinTilde(b)) return false; const l=noCombi();
   if(l.some(x=>(sinTilde(x.a)===sinTilde(a)&&sinTilde(x.b)===sinTilde(b))||(sinTilde(x.a)===sinTilde(b)&&sinTilde(x.b)===sinTilde(a)))) return false;
   l.push({a,b}); ls.set("kc.noCombi",l.slice(-40)); return true; }
-const noCombiTxt=()=>{const l=noCombi(); return l.length?`Combinaciones de color que NO le gustan (no las uses nunca en el mismo look): ${l.map(x=>`${x.a} con ${x.b}`).join("; ")}.`:""};
+/* v35: la chaqueta o abrigo de encima (categoría «Chaquetas y abrigos») no cuenta para las combinaciones que no le gustan:
+   solo se miran la ropa de debajo, los zapatos, el bolso y los complementos. Así un abrigo negro sobre un look marino vale */
+const noCombiTxt=()=>{const l=noCombi(); return l.length?`Combinaciones de color que NO le gustan (no las uses nunca en el mismo look): ${l.map(x=>`${x.a} con ${x.b}`).join("; ")}. Esto vale para lo que va debajo (partes de arriba, de abajo y vestidos), los zapatos, el bolso y los complementos. La chaqueta o abrigo de encima NO cuenta: puede ser de cualquiera de esos colores (p. ej. un abrigo negro sobre un look marino está bien).`:""};
 const colorTxt=p=>sinTilde((p.color||"")+" "+(p.nombre||""));
-function combiMal(ids){ // parejas prohibidas que aparecen en el look (sin contar joyas)
-  const ps=ids.map(id=>S.prendas.get(id)).filter(p=>p&&p.categoria!=="joya"), out=[];
+const cuentaColor=p=>p&&p.categoria!=="joya"&&p.categoria!=="abrigo"; // v35: ni joyas ni la prenda de abrigo de encima
+function combiMal(ids){ // parejas prohibidas que aparecen en el look (sin contar joyas ni la chaqueta o abrigo de encima)
+  const ps=ids.map(id=>S.prendas.get(id)).filter(cuentaColor), out=[];
   for(const {a,b} of noCombi()){ const A=sinTilde(a), B=sinTilde(b);
     const pa=ps.filter(p=>colorTxt(p).includes(A)), pb=ps.filter(p=>colorTxt(p).includes(B));
     if(pa.some(x=>pb.some(y=>y!==x))) out.push(`${a} con ${b}`); }
   return out;
 }
-const coloresLook=ids=>[...new Set(ids.map(id=>S.prendas.get(id)).filter(p=>p&&p.categoria!=="joya"&&p.color).map(p=>String(p.color).toLowerCase().trim().slice(0,30)))];
+const coloresLook=ids=>[...new Set(ids.map(id=>S.prendas.get(id)).filter(p=>cuentaColor(p)&&p.color).map(p=>String(p.color).toLowerCase().trim().slice(0,30)))];
 const RAZONES=["El color","Muy arreglado","Muy informal","Poco abrigo","Demasiado abrigo","Poco cómodo","Lo llevo demasiado"];
 const fbBox=l=>`<details class="fb" ${S.fbOpen?"open":""}><summary>¿Qué no te convence? Dímelo y aprendo</summary>
   <div class="chips">${RAZONES.map(x=>`<button type="button" class="chip" data-act="fbRazon" data-v="${esc(x)}" aria-pressed="${S.fb.razones.includes(x)}">${esc(x)}</button>`).join("")}</div>
-  ${S.fb.razones.includes("El color")?`<span class="lbl">¿Qué colores no te gustan juntos? Marca dos:</span>
+  ${S.fb.razones.includes("El color")?`<span class="lbl">¿Qué colores no te gustan juntos? Marca dos (la chaqueta o abrigo de encima no cuenta):</span>
   <div class="chips">${coloresLook(l.piezas||[]).map(c=>`<button type="button" class="chip" data-act="fbColor" data-v="${esc(c)}" aria-pressed="${(S.fb.colores||[]).includes(c)}">${esc(c)}</button>`).join("")}</div>`:""}
   <span class="lbl">No me apetece:</span>
   <div class="chips">${porLook(l.piezas||[]).map(p=>`<button type="button" class="chip" data-act="fbPieza" data-id="${esc(p.id)}" aria-pressed="${S.fb.prendas.includes(p.id)}">${esc(p.nombre)}</button>`).join("")}</div>
@@ -930,6 +936,7 @@ Cómo trabajas:
 - Trabajas el color con método:
   · Los neutros (negro, marino, crudo, blanco, gris, beige, camel) combinan con casi todo y no cuentan como color, pero NO todos entre sí: negro y marino juntos solo si hay una prenda clara (crudo, blanco, beige, gris claro) que haga contraste y separe los dos oscuros.
   · Dos azules distintos (marino, jaspeado, vaquero, grisáceo) solo si uno es claramente más claro que el otro. Nunca dos prendas oscuras de distinto color sin un punto de luz.
+  · Estas reglas de oscuros y azules, igual que las combinaciones que no le gustan, se aplican a lo que va debajo (partes de arriba, de abajo y vestidos), los zapatos, el bolso y los complementos. La chaqueta o abrigo de encima no cuenta para ellas: se quita al llegar, así que un abrigo negro sobre un look marino, o uno marino sobre un look negro, está bien. Aun así, elige el abrigo que mejor quede con el conjunto.
   · Antes de recurrir a la combinación más fácil (marino con negro), busca si hay una opción con más contraste o una armonía más bonita.
   · Regla 60-30-10: 60 % base (parte de abajo y chaqueta, normalmente neutros), 30 % secundario (parte de arriba, neutro o tono suave) y 10 % acento (zapatos, pañuelo o bolso, o la pieza protagonista).
   · Armonías, de más a menos habitual: neutros con un acento; monocromática (tonos de un mismo color); análoga (colores vecinos del círculo cromático, p. ej. granate y rosa palo); complementaria solo en el 10 % de acento (p. ej. marino con un toque cobre o camel).
@@ -1259,7 +1266,7 @@ evitarSinJoyas.length?`Debe ser claramente distinto del look que acaba de ver ($
     const ids=x=>limpiaPiezas(x&&x.piezas).filter(id=>S.prendas.get(id).categoria!=="joya").concat(paR&&!limpiaPiezas(x&&x.piezas).includes(paR.id)?[paR.id]:[]);
     let falta=faltaEnLook(ids(r)), sobra=sobraEnLook(ids(r)), malNota=notaIncoherente(r&&r.nota,ids(r)), frioNo=noAbriga(ids(r),t), colMal=combiMal(ids(r));
     if(falta.length||sobra.length||malNota.length||frioNo.length||colMal.length){ // segunda y última oportunidad (v30: la lista sale de la caché, a la décima parte)
-      const avisos=[falta.length?`no tenía ${falta.join(" ni ")}`:"",sobra.length?`tenía ${sobra.join(", ")}`:"",malNota.length?`la nota hablaba de ${malNota.join(", ")} y no estaba en las piezas`:"",colMal.length?`juntaba ${colMal.join(" y ")}, combinación que no le gusta`:"",frioNo.length?`con ${t.min} °C de mínima llevaba ${frioNo.join(" y ")}, que no abriga (hace falta calzado cerrado que abrigue)`:""].filter(Boolean).join("; ");
+      const avisos=[falta.length?`no tenía ${falta.join(" ni ")}`:"",sobra.length?`tenía ${sobra.join(", ")}`:"",malNota.length?`la nota hablaba de ${malNota.join(", ")} y no estaba en las piezas`:"",colMal.length?`juntaba ${colMal.join(" y ")} en la ropa de debajo, zapatos o bolso, combinación que no le gusta (la chaqueta o abrigo de encima puede ser de cualquier color)`:"",frioNo.length?`con ${t.min} °C de mínima llevaba ${frioNo.join(" y ")}, que no abriga (hace falta calzado cerrado que abrigue)`:""].filter(Boolean).join("; ");
       r=await pedirJSON(prompt+`\n\nIMPORTANTE: tu propuesta anterior (${aliasDe(limpiaPiezas(r&&r.piezas),K).join(", ")}) ${avisos}. Un look lleva una parte de arriba (como mucho dos si una va abierta encima, como un cárdigan, o es un jersey sobre camisa) y una de abajo (o un vestido), un par de zapatos, como mucho una chaqueta o abrigo, como mucho 2 capas de abrigo en total, nunca dos prendas del mismo tipo, y un solo bolso. La nota solo nombra prendas incluidas. Elige de la lista lo que mejor encaje aunque no sea perfecto.`,{signal:ctl.signal,maxTokens:1200,system:ESTILISTA,pensar:false,formato:LOOK_SCHEMA,prefijo});
       falta=faltaEnLook(ids(r));
       if(falta.length) throw new ClaudeError("incompleto",falta.join(" ni "));
@@ -1322,7 +1329,7 @@ function campos(pre,p){
     <div class="full pickbox"><span>Estación · marca todas las que encajen</span>${pick("estacion",ESTACIONES,p.estacion)}</div>
     <div class="full pickbox"><span>Estilo · marca todos los que encajen</span>${pick("estilo",ESTILOS,p.estilo)}</div>
     <div class="full pickbox"><span>Silueta · si aplica (ropa)</span>${pick("silueta",SILUETAS,p.silueta)}</div>
-    <p class="full hint">Estación y estilo deciden qué prendas ve Claude; abrigo, formalidad y silueta le ayudan a acertar con el tiempo, la ocasión y las proporciones. En las joyas, el color (dorado, plateado…) ayuda a la app a no mezclar metales.</p>
+    <p class="full hint">Estación y estilo deciden qué prendas ve Claude; abrigo, formalidad y silueta le ayudan a acertar con el tiempo, la ocasión y las proporciones. En las joyas, el color (dorado, plateado…) ayuda a la app a no mezclar metales. Lo que esté en “Chaquetas y abrigos” se trata como la prenda de encima: no cuenta para las combinaciones de color que no te gustan.</p>
     <label class="full">Detalles<textarea id="${pre}-descripcion">${esc(p.descripcion)}</textarea></label></div>`;
 }
 function leer(pre){
